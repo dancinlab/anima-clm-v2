@@ -214,8 +214,14 @@ def main():
     trinity = Trinity(c_engine=c, bridge=bridge, decoder=d, will=w_p2)
     for p in trinity.bridge.parameters():
         p.requires_grad_(True)
-    for p in trinity.decoder.parameters():
-        p.requires_grad_(True)
+    # Do NOT blanket-enable requires_grad on the decoder: HFDecoder deliberately
+    # freezes its 7B base and trains only LoRA + gate. Un-freezing it here would
+    # make AdamW track + STEP the whole base (→ ~29GB optimizer state AND CE
+    # divergence as the 'frozen' weights drift). Non-HF decoders are already
+    # fully trainable at construction, so there is nothing to enable.
+    if args.d_engine != 'hf':
+        for p in trinity.decoder.parameters():
+            p.requires_grad_(True)
 
     # Move bridge + decoder to device
     trinity.bridge = trinity.bridge.to(device)
