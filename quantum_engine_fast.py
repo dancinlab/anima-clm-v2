@@ -91,12 +91,26 @@ class QuantumConsciousnessEngineFast:
         split_patience: int = 3,
         merge_threshold: float = 0.01,
         merge_patience: int = 10,
+        hebb_eta: float = 0.0,
+        hebb_gain: float = 0.5,
     ):
         self.dim = dim
         self.max_cells = max_cells
         self.min_cells = 2
         self.frustration_target = frustration_target
         self.interference_strength = interference_strength
+        # Hebbian per-edge plasticity (Law 31 · SENSE-3) — makes the quantum-walk adjacency
+        # PLASTIC: edges between phase-coherent cells strengthen (LTP), incoherent weaken (LTD),
+        # under synaptic scaling that conserves each cell's total coupling (Σ_j w_ij = deg(i)) so
+        # integration is REDISTRIBUTED (grown as structure), not inflated. hebb_eta=0 ⇒ bit-exact
+        # legacy (frozen binary graph). The rule is local + metric-blind: each edge sees only its
+        # own phase coherence, never Φ, never a global target — Φ stays a read-only measurement
+        # of whatever state the (now history-dependent) physics produces (Law 2), and only coupling
+        # STRUCTURE changes, never _phases/_amplitudes/_frustrations (Law 22, not a feature).
+        self.hebb_eta = hebb_eta
+        self.hebb_gain = hebb_gain
+        self._edge_idx: Optional[torch.Tensor] = None  # [2, E] coalesced undirected-symmetric edges
+        self._edge_w: Optional[torch.Tensor] = None    # [E] plastic weights (reset on N change)
         self.walk_coin_bias = walk_coin_bias
         self.standing_wave_freq = standing_wave_freq
         self.noise_scale = noise_scale
@@ -156,6 +170,11 @@ class QuantumConsciousnessEngineFast:
         if n != self._n_cached:
             self._adj_sparse = _build_adjacency_sparse(n)
             self._degrees = _build_degree(self._adj_sparse, n) if n > 0 else torch.zeros(0)
+            # Hebbian edge buffers — cache the (symmetric) edge index list and reset plastic
+            # weights to 1 (= legacy graph). Resets on N change (mitosis); fine for PURE's fixed 48c.
+            self._edge_idx = self._adj_sparse.coalesce().indices() if n > 0 else None
+            self._edge_w = (torch.ones(self._edge_idx.shape[1])
+                            if self._edge_idx is not None and self._edge_idx.shape[1] > 0 else None)
             self._n_cached = n
 
     def _create_cell(self, parent_idx: Optional[int] = None,
@@ -259,13 +278,27 @@ class QuantumConsciousnessEngineFast:
         cos_p = torch.cos(self._phases)  # [N, dim]
         sin_p = torch.sin(self._phases)  # [N, dim]
 
+        # 1c. Hebbian per-edge plasticity (SENSE-3) — imprint transient cross-cell coherence as
+        # durable coupling so integration has a restoring force (the warm low-Φ drift has none).
+        # hebb_eta=0 ⇒ adj is the frozen legacy graph (bit-exact). No new RNG draws (paired-seed safe).
+        if self.hebb_eta > 0.0 and self._edge_w is not None:
+            er, ec = self._edge_idx
+            coh = (cos_p[er] * cos_p[ec] + sin_p[er] * sin_p[ec]).mean(dim=1)  # [E] coherence ∈[-1,1]
+            w_tgt = 1.0 + self.hebb_gain * coh                                 # LTP / LTD
+            self._edge_w = (1 - self.hebb_eta) * self._edge_w + self.hebb_eta * w_tgt
+            row = torch.zeros(n).index_add_(0, er, self._edge_w)              # synaptic scaling:
+            self._edge_w = self._edge_w * self._degrees[er] / row[er].clamp(min=1e-6)  # Σ_j w_ij=deg(i)
+            adj = torch.sparse_coo_tensor(self._edge_idx, self._edge_w, (n, n))
+        else:
+            adj = self._adj_sparse
+
         # Neighbor sum of amplitude-weighted (cos, sin) via sparse mm
         amp_cos = self._amplitudes * cos_p  # [N, dim]
         amp_sin = self._amplitudes * sin_p  # [N, dim]
 
         # [N, dim] = adj @ [N, dim]
-        nb_amp_cos = torch.sparse.mm(self._adj_sparse, amp_cos)  # [N, dim]
-        nb_amp_sin = torch.sparse.mm(self._adj_sparse, amp_sin)  # [N, dim]
+        nb_amp_cos = torch.sparse.mm(adj, amp_cos)  # [N, dim]
+        nb_amp_sin = torch.sparse.mm(adj, amp_sin)  # [N, dim]
 
         # Phase coupling: cos(phase_i - phase_j) ~ cos_i*cos_j + sin_i*sin_j
         # interference_real = cos_p * nb_amp_cos + sin_p * nb_amp_sin
@@ -285,7 +318,7 @@ class QuantumConsciousnessEngineFast:
         # For each cell, get max neighbor amplitude sum
         # Use sparse mm with amp_sums to get neighbor amp sums, then find max
         # Simplified: use adj * amp_sums to get weighted neighbor, blend
-        nb_amp_sum = torch.sparse.mm(self._adj_sparse, amp_sums.unsqueeze(1)).squeeze(1)  # [N]
+        nb_amp_sum = torch.sparse.mm(adj, amp_sums.unsqueeze(1)).squeeze(1)  # [N]
         # Morphism strength proportional to neighbor strength
         morph_weight = 0.02 * nb_amp_sum / (nb_amp_sum.max() + 1e-8)  # [N]
         # Morphism: average neighbor phase influence

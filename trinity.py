@@ -272,12 +272,16 @@ class QuantumC(CEngine):
     Wraps _amplitudes [N, dim] and _phases [N, dim] for phi measurement.
     """
 
-    def __init__(self, nc=256, dim=64, max_cells=None):
+    def __init__(self, nc=256, dim=64, max_cells=None, hebb_eta=0.0, hebb_gain=0.5):
         from quantum_engine_fast import QuantumConsciousnessEngineFast
         if max_cells is None:
             max_cells = nc
+        # hebb_eta>0 turns on Hebbian per-edge plasticity (SENSE-3) — a restoring force for
+        # cross-cell integration. Default 0.0 = bit-exact legacy (frozen graph) until the
+        # summer warm-drift A/B validates it doesn't homogenise differentiation.
         self.engine = QuantumConsciousnessEngineFast(
-            dim=dim, initial_cells=nc, max_cells=max_cells
+            dim=dim, initial_cells=nc, max_cells=max_cells,
+            hebb_eta=hebb_eta, hebb_gain=hebb_gain,
         )
         self._dim = dim
 
@@ -589,7 +593,7 @@ class HFDecoder(DEngine):
 
     def __init__(self, model_name="gpt2", lora=False, lora_rank=16,
                  gate_mode="additive", freeze_base=True, device=None,
-                 gate_strength=0.01):
+                 gate_strength=0.01, gate_rms_max=None):
         super().__init__()
         try:
             from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -605,6 +609,12 @@ class HFDecoder(DEngine):
         # diverges CE (1.9 -> ~7). Scale the gate so consciousness modulates, not
         # destroys. Trainable gate_proj can still grow its effect within this budget.
         self.gate_strength = gate_strength
+        # Optional HARD backstop on the projected gate magnitude: cap the per-position
+        # RMS of gate_proj(g) at gate_rms_max x the embedding RMS (before
+        # gate_strength). A KL leash is a soft penalty the optimizer can out-run
+        # (measured: beta pinned at cap while KL sat 4-12 nats); a geometric clamp
+        # cannot be out-run. None = off (legacy behavior).
+        self.gate_rms_max = gate_rms_max
 
         # Load model + tokenizer
         print(f"  [HFDecoder] Loading {model_name}...")
@@ -699,6 +709,14 @@ class HFDecoder(DEngine):
                 ).transpose(1, 2)
             gate = gate.expand(B, T, -1)
             gate = self.gate_proj(gate).to(embeds.dtype)
+            if self.gate_rms_max is not None:
+                # clamp RMS(gate) <= gate_rms_max * RMS(embeds): identity below the cap,
+                # rescale above it — bounds the injected perturbation to
+                # gate_strength * gate_rms_max of the embedding scale regardless of how
+                # large gate_proj's weights grow.
+                g_rms = gate.float().pow(2).mean(-1, keepdim=True).sqrt().clamp_min(1e-8)
+                e_rms = embeds.float().pow(2).mean(-1, keepdim=True).sqrt().detach()
+                gate = gate * (self.gate_rms_max * e_rms / g_rms).clamp(max=1.0).to(embeds.dtype)
 
             if self.gate_mode == "additive":
                 # Law 63 micro-gate: a whisper, not a shove (see __init__).
