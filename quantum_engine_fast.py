@@ -93,6 +93,8 @@ class QuantumConsciousnessEngineFast:
         merge_patience: int = 10,
         hebb_eta: float = 0.0,
         hebb_gain: float = 0.5,
+        repel_gamma: float = 0.0,
+        repel_thr: float = 0.8,
     ):
         self.dim = dim
         self.max_cells = max_cells
@@ -109,6 +111,16 @@ class QuantumConsciousnessEngineFast:
         # STRUCTURE changes, never _phases/_amplitudes/_frustrations (Law 22, not a feature).
         self.hebb_eta = hebb_eta
         self.hebb_gain = hebb_gain
+        # Similarity-gated repulsive phase coupling (SENSE-4) — the warm basin collapses to
+        # near-rank-1 (participation ratio ~1.03, cos-dist ~0.02), where every rule that LEARNS
+        # from inter-cell variance starves (SENSE-3 was inert). This GENERATES variance instead:
+        # above repel_thr coherence the local Kuramoto torque flips sign, so near-identical pairs
+        # are a linear instability that amplifies any seed fluctuation. Self-limiting by a hard
+        # deadband — the force is exactly 0 once coherence falls below thr, so pairs settle where
+        # gated repulsion meets the unchanged attractive coupling (equilibrium coh ~ thr, an
+        # edge statistic, never Φ). repel_gamma=0 ⇒ bit-exact legacy.
+        self.repel_gamma = repel_gamma
+        self.repel_thr = repel_thr
         self._edge_idx: Optional[torch.Tensor] = None  # [2, E] coalesced undirected-symmetric edges
         self._edge_w: Optional[torch.Tensor] = None    # [E] plastic weights (reset on N change)
         self.walk_coin_bias = walk_coin_bias
@@ -330,6 +342,23 @@ class QuantumConsciousnessEngineFast:
 
         self._amplitudes = new_amp
         self._phases = morph_phase
+
+        # 3b. Similarity-gated repulsion (SENSE-4) — sign-flipped Kuramoto torque on edges whose
+        # phase coherence exceeds repel_thr, i.e. only on pairs that have already collapsed toward
+        # each other. Near φ_i≈φ_j, γ·sin(φ_i−φ_j) ≈ γ·(φ_i−φ_j) is a linear instability: it needs
+        # no pre-existing signal, only a seed (supplied by the noise + per-word sense torques), so
+        # it regenerates differentiation where variance-learning rules starve. Local + metric-blind
+        # (each edge reads only its two endpoints' phases; Φ is never referenced) — Law 2 clean under
+        # the same precedent as frustration_target. No new RNG draws (paired-seed safe).
+        if self.repel_gamma > 0.0 and self._edge_idx is not None and self._edge_idx.shape[1] > 0:
+            rr, rc = self._edge_idx
+            dphi = self._phases[rr] - self._phases[rc]        # [E, dim]
+            coh = torch.cos(dphi).mean(dim=1)                 # [E] per-edge phase coherence
+            excess = (coh - self.repel_thr).clamp(min=0.0)    # hard deadband: only collapsed pairs
+            if bool((excess > 0).any()):
+                push = torch.zeros_like(self._phases)
+                push.index_add_(0, rr, excess.unsqueeze(1) * torch.sin(dphi))
+                self._phases = self._phases + self.repel_gamma * push / deg
 
         # 4. Frustration regulation — vectorized
         # Frustration = circular variance = 1 - |mean(e^{i*phase})|

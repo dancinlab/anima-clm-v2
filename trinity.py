@@ -272,16 +272,22 @@ class QuantumC(CEngine):
     Wraps _amplitudes [N, dim] and _phases [N, dim] for phi measurement.
     """
 
-    def __init__(self, nc=256, dim=64, max_cells=None, hebb_eta=0.0, hebb_gain=0.5):
+    def __init__(self, nc=256, dim=64, max_cells=None, hebb_eta=0.0, hebb_gain=0.5,
+                 repel_gamma=0.0, repel_thr=0.8):
         from quantum_engine_fast import QuantumConsciousnessEngineFast
         if max_cells is None:
             max_cells = nc
         # hebb_eta>0 turns on Hebbian per-edge plasticity (SENSE-3) — a restoring force for
         # cross-cell integration. Default 0.0 = bit-exact legacy (frozen graph) until the
         # summer warm-drift A/B validates it doesn't homogenise differentiation.
+        # repel_gamma>0 turns on similarity-gated repulsive phase coupling (SENSE-4) — regenerates
+        # differentiation in the near-rank-1 warm basin where SENSE-3's Hebbian rule was inert.
+        # Default 0.0 = bit-exact legacy until the summer A/B validates it lifts participation
+        # ratio / cos-distance without re-inflating toward the cold basin.
         self.engine = QuantumConsciousnessEngineFast(
             dim=dim, initial_cells=nc, max_cells=max_cells,
             hebb_eta=hebb_eta, hebb_gain=hebb_gain,
+            repel_gamma=repel_gamma, repel_thr=repel_thr,
         )
         self._dim = dim
 
