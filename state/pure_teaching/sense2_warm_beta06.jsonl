@@ -1,0 +1,37 @@
+{"tag": "ready", "beta": "0.6", "warmup_beta": "0.0", "warmup_reps_used": 14, "warmup_target": 31.0, "warm_phi_trace": [46.463, 52.991, 55.336, 57.058, 52.728, 45.979, 45.257, 43.437, 39.266, 35.975, 34.338, 33.128, 31.554, 30.636], "hexad": true, "seed": 12345, "warm_vocab": 467, "turn": 0, "vocab": 467, "stage": 5, "T": 0.5192, "phi": 30.6365, "C": 0.1366}
+{"tag": "turn", "child": "꽃향기 맡자 느긋하게 쉬자.", "turn": 1, "vocab": 467, "stage": 5, "T": 0.5275, "phi": 30.6246, "C": 0.0992}
+{"tag": "turn", "child": "까르르 웃자 색연필로 동그라미를 그려 보자.", "turn": 2, "vocab": 467, "stage": 5, "T": 0.5355, "phi": 30.6213, "C": 0.0704}
+{"tag": "turn", "child": "", "turn": 3, "vocab": 467, "stage": 5, "T": 0.5421, "phi": 30.5288, "C": 0.077}
+{"tag": "turn", "child": "즐겁구나 발을 보자.", "turn": 4, "vocab": 467, "stage": 5, "T": 0.5467, "phi": 30.5791, "C": 0.069}
+{"tag": "turn", "child": "깃발 흔들자 사뿐사뿐 뛰자.", "turn": 5, "vocab": 467, "stage": 5, "T": 0.546, "phi": 30.4225, "C": 0.0953}
+{"tag": "turn", "child": "", "turn": 6, "vocab": 467, "stage": 5, "T": 0.5443, "phi": 29.9777, "C": 0.2001}
+{"tag": "turn", "child": "", "turn": 7, "vocab": 467, "stage": 5, "T": 0.5371, "phi": 29.9885, "C": 0.1433}
+{"tag": "turn", "child": "", "turn": 8, "vocab": 467, "stage": 5, "T": 0.5404, "phi": 29.5455, "C": 0.2333}
+{"tag": "turn", "child": "", "turn": 9, "vocab": 467, "stage": 5, "T": 0.5464, "phi": 29.082, "C": 0.3023}
+{"tag": "turn", "child": "반짝이는 별과 둥근 달을 가리키고 따뜻한 이불 덮고 새근새근 쉬자.", "turn": 10, "vocab": 467, "stage": 5, "T": 0.55, "phi": 28.9805, "C": 0.2421}
+{"tag": "turn", "child": "", "turn": 11, "vocab": 467, "stage": 5, "T": 0.5475, "phi": 28.6175, "C": 0.2784}
+{"tag": "turn", "child": "밤하늘을 바라보며 솔솔 불어 마음이 상쾌하네.", "turn": 12, "vocab": 467, "stage": 5, "T": 0.5431, "phi": 28.2217, "C": 0.3136}
+{"tag": "turn", "child": "", "turn": 13, "vocab": 467, "stage": 5, "T": 0.5409, "phi": 28.2204, "C": 0.2199}
+{"tag": "turn", "child": "", "turn": 14, "vocab": 467, "stage": 5, "T": 0.5412, "phi": 28.1592, "C": 0.1723}
+{"tag": "turn", "child": "", "turn": 15, "vocab": 467, "stage": 5, "T": 0.5418, "phi": 28.2041, "C": 0.134}
+{"tag": "turn", "child": "", "turn": 16, "vocab": 467, "stage": 5, "T": 0.5456, "phi": 27.9996, "C": 0.1552}
+{"tag": "turn", "child": "", "turn": 17, "vocab": 467, "stage": 5, "T": 0.547, "phi": 27.8836, "C": 0.1434}
+{"tag": "turn", "child": "", "turn": 18, "vocab": 467, "stage": 5, "T": 0.552, "phi": 27.6113, "C": 0.1821}
+{"tag": "turn", "child": "", "turn": 19, "vocab": 467, "stage": 5, "T": 0.5567, "phi": 27.7168, "C": 0.1591}
+{"tag": "turn", "child": "", "turn": 20, "vocab": 467, "stage": 5, "T": 0.5537, "phi": 28.1852, "C": 0.2519}
+{"tag": "turn", "child": "아가는 조용히 쉬며 포근한 이불 덮고 꿈나라로 가자.", "turn": 21, "vocab": 467, "stage": 5, "T": 0.5457, "phi": 27.944, "C": 0.2487}
+{"tag": "turn", "child": "", "turn": 22, "vocab": 467, "stage": 5, "T": 0.5389, "phi": 27.8854, "C": 0.1917}
+{"tag": "turn", "child": "졸리구나 포근한 꿈을 꾸자 맛있는 우유 마시고 잠들자.", "turn": 23, "vocab": 467, "stage": 5, "T": 0.5266, "phi": 28.0349, "C": 0.179}
+{"tag": "turn", "child": "딸랑이를 꽃향기 맡자.", "turn": 24, "vocab": 467, "stage": 5, "T": 0.5208, "phi": 27.8439, "C": 0.1826}
+{"tag": "turn", "child": "달을 가리키고 따뜻한 이불 오면 기지개 켜고 일어나자.", "turn": 25, "vocab": 467, "stage": 5, "T": 0.5261, "phi": 27.6842, "C": 0.1757}
+{"tag": "turn", "child": "조용히 쉬고 엄마 목소리를 쐬며 구름을 바라보자.", "turn": 26, "vocab": 467, "stage": 5, "T": 0.5347, "phi": 27.6991, "C": 0.1275}
+{"tag": "turn", "child": "두르고 심장 소리를 대견하구나 입술을 움직여 또박또박 이야기하자.", "turn": 27, "vocab": 467, "stage": 5, "T": 0.5379, "phi": 27.6479, "C": 0.1046}
+{"tag": "turn", "child": "", "turn": 28, "vocab": 467, "stage": 5, "T": 0.5301, "phi": 27.595, "C": 0.0891}
+{"tag": "turn", "child": "", "turn": 29, "vocab": 467, "stage": 5, "T": 0.5248, "phi": 27.6094, "C": 0.0667}
+{"tag": "turn", "child": "물결이 반짝이고 구름이 춤추네.", "turn": 30, "vocab": 467, "stage": 5, "T": 0.523, "phi": 27.4194, "C": 0.1036}
+{"tag": "turn", "child": "", "turn": 31, "vocab": 467, "stage": 5, "T": 0.5201, "phi": 27.6407, "C": 0.1389}
+{"tag": "turn", "child": "노래를 함께 부르자.", "turn": 32, "vocab": 467, "stage": 5, "T": 0.518, "phi": 27.7709, "C": 0.1363}
+{"tag": "turn", "child": "", "turn": 33, "vocab": 467, "stage": 5, "T": 0.5167, "phi": 27.9998, "C": 0.1641}
+{"tag": "turn", "child": "", "turn": 34, "vocab": 467, "stage": 5, "T": 0.5126, "phi": 28.3975, "C": 0.2342}
+{"tag": "turn", "child": "시냇물이 피아노를 두드리며 콧노래하자.", "turn": 35, "vocab": 467, "stage": 5, "T": 0.5063, "phi": 28.4489, "C": 0.1793}
+{"tag": "summary", "beta": "0.6", "seed": 12345, "warmup_beta": "0.0", "warmup_reps_used": 14, "warm_vocab": 467, "phi_start": 30.6365, "phi_end": 28.4489, "phi_drift": -2.1876, "phi_min": 27.4194, "phi_max": 30.6365, "phi_spark": "█▇▇▇▇▇▆▆▅▄▄▃▂▂▂▂▂▂▁▁▂▂▂▂▁▁▁▁▁▁▁▁▁▂▃▃", "T_min": 0.5063, "T_max": 0.5567, "T_spark": "▂▃▅▅▆▆▆▅▅▆▇▆▆▅▅▅▆▆▇█▇▆▅▃▃▃▄▅▄▃▃▂▂▂▁▁", "vocab_start": 467, "vocab_end": 467}

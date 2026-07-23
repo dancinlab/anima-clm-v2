@@ -1,0 +1,117 @@
+==============================================================================
+SENSE-2 WARM-mind drift test  arm beta=0.6  (summer, torch QuantumC 48c/48d + phi_py)
+  warm store = 467-word state/pure_mind/mind.json (SENSE-GROW grown mind, READ-ONLY copy)
+  warmup: curriculum reps under beta=0 until Phi<=31 (identical both arms) -> low-Phi ~30 basin
+  then TEST beta=0.6 applied over the 35 replayed Codex caregiver lines
+  seed=12345  hexad=True  warmup_reps_used=14
+  warm_phi_trace (per rep): [46.463, 52.991, 55.336, 57.058, 52.728, 45.979, 45.257, 43.437, 39.266, 35.975, 34.338, 33.128, 31.554, 30.636]
+==============================================================================
+[t 0 v467 reflection T=0.519 Phi=30.637 C=0.137]  (warm start)
+[t 1 v467 reflection T=0.527 Phi=30.625 C=0.099]
+    Codex: 아가야, 엄마가 사랑해.
+    PURE : 꽃향기 맡자 느긋하게 쉬자.
+[t 2 v467 reflection T=0.535 Phi=30.621 C=0.070]
+    Codex: 그래, 꽃잎은 부드럽고 향기는 달콤해.
+    PURE : 까르르 웃자 색연필로 동그라미를 그려 보자.
+[t 3 v467 reflection T=0.542 Phi=30.529 C=0.077]
+    Codex: 응, 나뭇잎이 살랑이고 새가 노래해.
+    PURE : (silence)
+[t 4 v467 reflection T=0.547 Phi=30.579 C=0.069]
+    Codex: 참새는 날고, 물을 마신 뒤 포근히 잠들자.
+    PURE : 즐겁구나 발을 보자.
+[t 5 v467 reflection T=0.546 Phi=30.422 C=0.095]
+    Codex: 응, 노란 씨앗이 손끝을 간질여.
+    PURE : 깃발 흔들자 사뿐사뿐 뛰자.
+[t 6 v467 reflection T=0.544 Phi=29.978 C=0.200]
+    Codex: 응, 귓가에 솔솔 불어 마음이 상쾌하네.
+    PURE : (silence)
+[t 7 v467 reflection T=0.537 Phi=29.988 C=0.143]
+    Codex: 아가는 조용히 숨 쉬고, 엄마 품에서 편안해.
+    PURE : (silence)
+[t 8 v467 reflection T=0.540 Phi=29.546 C=0.233]
+    Codex: 이불 덮고 꿈나라로 가자.
+    PURE : (silence)
+[t 9 v467 reflection T=0.546 Phi=29.082 C=0.302]
+    Codex: 응, 종이에 무지개를 그리고 자장가를 듣자.
+    PURE : (silence)
+[t10 v467 reflection T=0.550 Phi=28.980 C=0.242]
+    Codex: 응, 햇살이 반짝이고 구름이 춤추네.
+    PURE : 반짝이는 별과 둥근 달을 가리키고 따뜻한 이불 덮고 새근새근 쉬자.
+[t11 v467 reflection T=0.547 Phi=28.617 C=0.278]
+    Codex: 토닥토닥, 심장이 뛰고 눈꺼풀이 감기네.
+    PURE : (silence)
+[t12 v467 reflection T=0.543 Phi=28.222 C=0.314]
+    Codex: 응, 연필로 세모와 네모도 그리자.
+    PURE : 밤하늘을 바라보며 솔솔 불어 마음이 상쾌하네.
+[t13 v467 reflection T=0.541 Phi=28.220 C=0.220]
+    Codex: 응, 볼은 발그레하고 기쁨이 피어나.
+    PURE : (silence)
+[t14 v467 reflection T=0.541 Phi=28.159 C=0.172]
+    Codex: 응, 손가락으로 둥근 달을 가리키고 따뜻한 우유를 홀짝이자.
+    PURE : (silence)
+[t15 v467 reflection T=0.542 Phi=28.204 C=0.134]
+    Codex: 응, 건반을 누르니 맑은 멜로디가 울리네.
+    PURE : (silence)
+[t16 v467 reflection T=0.546 Phi=28.000 C=0.155]
+    Codex: 응, 어깨를 포옹하니 든든하고 행복해.
+    PURE : (silence)
+[t17 v467 reflection T=0.547 Phi=27.884 C=0.143]
+    Codex: 응, 북을 치며 발꿈치를 들고 빙글빙글 돌자.
+    PURE : (silence)
+[t18 v467 reflection T=0.552 Phi=27.611 C=0.182]
+    Codex: 쉿, 귀뚜라미가 속삭이고 별빛이 내려와.
+    PURE : (silence)
+[t19 v467 reflection T=0.557 Phi=27.717 C=0.159]
+    Codex: 새벽이 오면 해님이 떠오르고 아침이 밝아와.
+    PURE : (silence)
+[t20 v467 reflection T=0.554 Phi=28.185 C=0.252]
+    Codex: 고마워, 품속에서 다정한 입맞춤을 나누자.
+    PURE : (silence)
+[t21 v467 reflection T=0.546 Phi=27.944 C=0.249]
+    Codex: 응, 개구리가 폴짝 뛰고 물결이 찰랑이네.
+    PURE : 아가는 조용히 쉬며 포근한 이불 덮고 꿈나라로 가자.
+[t22 v467 reflection T=0.539 Phi=27.885 C=0.192]
+    Codex: 응, 커튼을 열고 세수하며 깨어나자.
+    PURE : (silence)
+[t23 v467 reflection T=0.527 Phi=28.035 C=0.179]
+    Codex: 응, 산들바람이 뺨을 스치니 가슴이 맑아지네.
+    PURE : 졸리구나 포근한 꿈을 꾸자 맛있는 우유 마시고 잠들자.
+[t24 v467 reflection T=0.521 Phi=27.844 C=0.183]
+    Codex: 응, 미소가 번지고 설렘이 샘솟네.
+    PURE : 딸랑이를 꽃향기 맡자.
+[t25 v467 reflection T=0.526 Phi=27.684 C=0.176]
+    Codex: 쉿, 시냇물이 졸졸 흐르고 반딧불이가 날아와.
+    PURE : 달을 가리키고 따뜻한 이불 오면 기지개 켜고 일어나자.
+[t26 v467 reflection T=0.535 Phi=27.699 C=0.128]
+    Codex: 쉿, 달팽이가 기어가고 풀벌레가 쉬네.
+    PURE : 조용히 쉬고 엄마 목소리를 쐬며 구름을 바라보자.
+[t27 v467 reflection T=0.538 Phi=27.648 C=0.105]
+    Codex: 응, 나비를 색칠하고 라일락 향을 즐기자.
+    PURE : 두르고 심장 소리를 대견하구나 입술을 움직여 또박또박 이야기하자.
+[t28 v467 reflection T=0.530 Phi=27.595 C=0.089]
+    Codex: 쉿, 부엉이가 눈뜨고 이슬방울이 맺히네.
+    PURE : (silence)
+[t29 v467 reflection T=0.525 Phi=27.609 C=0.067]
+    Codex: 응, 꿀벌을 바라보고 제비꽃도 찾아보자.
+    PURE : (silence)
+[t30 v467 reflection T=0.523 Phi=27.419 C=0.104]
+    Codex: 응, 무당벌레가 풀잎에 앉고 거미가 줄을 짜네.
+    PURE : 물결이 반짝이고 구름이 춤추네.
+[t31 v467 reflection T=0.520 Phi=27.641 C=0.139]
+    Codex: 응, 호기심을 품고 속삭임을 들으며 느긋하게 쉬자.
+    PURE : (silence)
+[t32 v467 reflection T=0.518 Phi=27.771 C=0.136]
+    Codex: 응, 딸랑이를 흔들며 까르르 웃자.
+    PURE : 노래를 함께 부르자.
+[t33 v467 reflection T=0.517 Phi=28.000 C=0.164]
+    Codex: 응, 탬버린을 흔들며 발끝으로 사뿐사뿐 뛰자.
+    PURE : (silence)
+[t34 v467 reflection T=0.513 Phi=28.398 C=0.234]
+    Codex: 응, 종달새가 지저귀고 아지랑이가 피어오르네.
+    PURE : (silence)
+[t35 v467 reflection T=0.506 Phi=28.449 C=0.179]
+    Codex: 응, 밤하늘을 바라보며 은은한 재스민 향기를 맡자.
+    PURE : 시냇물이 피아노를 두드리며 콧노래하자.
+------------------------------------------------------------------------------
+summary: Phi_start=30.637 Phi_end=28.449 drift=-2.188 (min 27.42/max 30.64)  T 0.506..0.557  vocab 467->467
+Phi spark: █▇▇▇▇▇▆▆▅▄▄▃▂▂▂▂▂▂▁▁▂▂▂▂▁▁▁▁▁▁▁▁▁▂▃▃

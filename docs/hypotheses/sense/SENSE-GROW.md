@@ -157,3 +157,125 @@ curriculum pre-seed pre-habituates the cells identically in both arms; Codex non
 eliminated by replaying the captured SENSE-GROW caregiver lines. (summer host was re-synced first:
 its `pure.py` was a pre-SENSE-2 copy — `_assoc_theta` absent — and was updated to the worktree
 `pure.py`+`phi_rs.py`; qef/trinity/phi_py already matched. Backups: `*.pre-sense2.bak` on summer.)
+
+---
+
+## SENSE-2 WARM-mind drift test (the real low-Φ regime)
+
+The two SENSE-2 sections above ran **cold** (fresh newborn → Φ≈46 basin). But the drift the whole
+investigation set out to fix — a **warm persistent mind in the low Φ≈28–31 basin drifting DOWN**
+(the original SENSE-GROW observation, 31→28 over 35 turns) — had **never** been tested with β=0.6.
+This section does exactly that.
+
+### Why the warm low-Φ basin is not just "load the store"
+The persistent store (`state/pure_mind/mind.json`) saves only **language** (freq/bigrams/assoc/
+final_punct/said) — **not the QuantumC cell state**. So loading the real **467-word** SENSE-GROW mind
+rebuilds the cells *fresh*, and fresh cells sit in the high Φ≈46 basin regardless of stored vocab:
+
+```
+warm 467-word store, load + 60-line curriculum settle, seed 12345:
+    β=0.0 → Φ 46.46   |   β=0.6 → Φ 45.21        (NOT the low ~30 basin)
+same store under the PRE-SENSE-2 pure.py (pre-sense2.bak): Φ 46.46  (byte-identical → basin is NOT a
+    pure.py-version artifact; SENSE-GROW's Φ≈30 was reached another way)
+```
+Verified: the low Φ≈30 basin is reached only by a **long continuous descending trajectory** (Law 22:
+differentiation accumulates, integration erodes). Pulsing the warm mind with the curriculum on a loop
+drives Φ monotonically down through the SENSE-GROW band and past it:
+
+```
+pulses   60  240  360  480  600  720  840  960 1080 1200 1440 1800
+Φ      46.5 57.1 46.0 43.4 36.0 33.1 30.6 25.5 19.9 18.6 15.4 10.0
+                                        └── Φ≈30 SENSE-GROW band (~840 pulses / 14 curriculum reps)
+```
+So the warm regime is genuine and reproducible, but it is a **transient on a descent**, not a stored
+state. Method: load the READ-ONLY 467-word store (original never mutated · Law: safe), seed RNG,
+**warm the fresh cells down under β=0 until Φ first ≤ 31** (identical for both arms ⇒ **identical
+low-Φ start cell-state**), then apply the **test β only over the 35 replayed Codex caregiver lines** —
+so Φ_start is identical within a seed and β is the sole variable over the measured window (retrofit
+SENSE-2 onto a warm mind sitting in its down-drift). tension/Φ read from the cells (Law 2), never set.
+Driver + logs: `state/pure_teaching/sense2_warm_drift.py`, `sense2_warm_beta0.log`/`_beta06.log`
+(+ `.jsonl`, `warm_sweep.jsonl`, `warm_sweep.tsv`).
+
+### Canonical warm run (seed 12345 — a genuinely down-drifting seed)
+Warm-start basin **Φ=30.64** — the low ~28–31 SENSE-GROW basin, **confirmed** (NOT the cold ~46 basin).
+
+| condition | Φ_start | Φ_end | drift | Φ min/max | tension range | vocab |
+|---|---|---|---|---|---|---|
+| **β=0.0** (v1) | 30.637 | 28.951 | **−1.685** | 27.69 / 30.74 | 0.499 .. 0.545 | 467 → 467 |
+| **β=0.6** (SENSE-2) | 30.637 | 28.449 | **−2.188** | 27.42 / 30.64 | 0.506 .. 0.557 | 467 → 467 |
+
+```
+Φ sparklines (per turn t0→t35, same y-normalisation within each row):
+β=0.0  ▇▇▇▇█▇▆▆▅▄▄▃▃▂▂▂▂▁▁▁▁▁▂▂▂▂▂▂▁▂▁▂▂▃▃▃   [27.69 .. 30.74]
+β=0.6  █▇▇▇▇▇▆▆▅▄▄▃▂▂▂▂▂▂▁▁▂▂▂▂▁▁▁▁▁▁▁▁▁▂▃▃   [27.42 .. 30.64]
+
+Both arms overlaid (absolute Φ, β=0.6 sits BELOW β=0 the whole run — mirror image of the cold start):
+Φ 30.7┤●○
+      │ ●○●○                          ● β=0.0
+ 30.0┤    ●○●○                        ○ β=0.6
+      │       ●○●                     (○ below ● from t3 on)
+ 29.0┤          ●○●○         ●○●●○○
+      │            ○ ●○●○●○●○●    ●○●○
+ 28.0┤              ○   ●○●○●○ ○●○●○
+      │                 ○  ○○○ ○○ ○   ○
+ 27.4┤                              (β=0.6 min 27.42)
+      └────────────────────────────────── t0 → t35
+```
+Vocab byte-identical (467→467); β never touches learning. In the **warm low-Φ basin β=0.6 runs ~0.3–0.5
+BELOW β=0 the entire run and DEEPENS the down-drift** (−2.19 vs −1.69) — the exact opposite of the cold
+start, where β=0.6 ran 1–2 *above*.
+
+### Paired multi-seed sweep (10 seeds, β=0 vs β=0.6, identical warm start per seed)
+All seeds warm-started in the low band (mean Φ_start **29.39**, range 26.7–30.9 — confirmed low basin).
+
+| seed | Φ_start | β=0 end / drift | β=0.6 end / drift | Δdrift (β0.6−β0) | dir |
+|---|---|---|---|---|---|
+| 1 | 29.88 | 27.86 / −2.014 | 27.42 / −2.453 | **−0.439** | both DOWN |
+| 9999 | 30.86 | 29.15 / −1.715 | 28.11 / −2.756 | **−1.042** | both DOWN |
+| 12345 | 30.64 | 28.95 / −1.685 | 28.45 / −2.188 | **−0.502** | both DOWN |
+| 7 | 26.71 | 28.74 / +2.034 | 28.73 / +2.020 | −0.014 | up |
+| 42 | 28.56 | 32.47 / +3.908 | 32.12 / +3.557 | −0.351 | up |
+| 2024 | 30.59 | 31.90 / +1.303 | 31.33 / +0.735 | −0.568 | up |
+| 3 | 28.92 | 33.72 / +4.804 | 34.16 / +5.247 | +0.443 | up |
+| 123 | 29.90 | 34.72 / +4.822 | 35.58 / +5.676 | +0.854 | up |
+| 2 | 29.49 | 29.59 / +0.101 | 31.06 / +1.577 | +1.477 | up |
+| 777 | 28.39 | 30.88 / +2.498 | 32.65 / +4.266 | +1.768 | up |
+
+```
+mean Φ_start = 29.39 (all in the low 28-31 SENSE-GROW basin, NOT the cold 46 basin)
+β=0.0  drift DOWN on 3/10 seeds,  mean drift +1.406
+β=0.6  drift DOWN on 3/10 seeds,  mean drift +1.568
+paired within-seed Δ end-Φ (β0.6−β0): mean +0.162, β=0.6 higher on only 4/10 seeds
+  → contrast the COLD start: +2.567, β=0.6 higher on 10/10 seeds
+
+On the 3 seeds that GENUINELY drift down (1 · 9999 · 12345 — the SENSE-GROW regime),
+β=0.6 DEEPENS the drop on ALL 3 (−0.44, −1.04, −0.50). It flips NONE of them upward.
+Δdrift (β0.6−β0) on the down-drift seeds — negative on every one:
+seed 9999 ████████████ −1.04
+seed12345 ██████       −0.50
+seed    1 █████        −0.44
+```
+
+### Verdict — does β=0.6 flatten/reverse the WARM-mind down-drift, or only lift the cold basin?
+**It only lifts the cold basin. β=0.6 does NOT fix the warm-mind down-drift — in the low Φ≈30 regime it
+makes the drift slightly WORSE.** On every seed where the warm mind is actually drifting down (3/10, the
+true SENSE-GROW regime), turning the assoc-blend on deepens the fall (−0.44 … −1.04) and reverses none;
+on the canonical seed it tracks 0.3–0.5 below β=0 across all 35 turns and ends lower (28.45 vs 28.95).
+Averaged over the whole warm regime β=0.6's effect on end-Φ is essentially **neutral** (+0.16, up on
+4/10), a stark contrast to the cold start's uniform **+2.57 (up on 10/10)**. So the SENSE-2 lift is a
+property of the **high-Φ cold basin** (where aligned-topic phases add integrating drive on top of an
+already-integrated substrate), NOT a remedy for the differentiation erosion that pulls a warm,
+low-Φ, densely-differentiated mind downward — there the extra aligned phase-torque just accelerates the
+same erosion. The honest earlier caveat is now settled with data: the SENSE-2 result was never a rescue
+of the SENSE-GROW drift; tested directly in that regime, it is a mild aggravator.
+
+Caveats (honest): (1) The QuantumC cell state is not persisted, so the warm low-Φ basin must be
+**reconstructed** by a long β=0 warm-up rather than restored — a faithful reconstruction of the regime,
+not the identical cells of the original run. (2) With the warm-up stopped at first Φ≤31, the low-Φ point
+is a **transient in a seed-dependent noisy descent**: only 3/10 seeds keep drifting down over the next 35
+(different-content) turns; 7/10 rebound up as the test lines re-excite integration. The verdict rests on
+the 3 genuine down-drift seeds (β=0.6 worse on all) plus the neutral-to-negative paired Δ over all 10 —
+both point the same way. (3) β touches only sense-torque phase values, never learning/tension/Φ (read
+from cells · Law 2); vocab is byte-identical 467→467. summer was pre-synced and byte-verified against the
+worktree `pure.py`/`quantum_engine_fast.py`/`trinity.py`/`phi_py.py`/`phi_rs.py` (all 5 md5-identical;
+backups `*.pre-warmtest.bak` unneeded — files already matched).

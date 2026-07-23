@@ -1,0 +1,37 @@
+{"tag": "ready", "beta": "0.0", "warmup_beta": "0.0", "warmup_reps_used": 14, "warmup_target": 31.0, "warm_phi_trace": [46.463, 52.991, 55.336, 57.058, 52.728, 45.979, 45.257, 43.437, 39.266, 35.975, 34.338, 33.128, 31.554, 30.636], "hexad": true, "seed": 12345, "warm_vocab": 467, "turn": 0, "vocab": 467, "stage": 5, "T": 0.5192, "phi": 30.6365, "C": 0.1366}
+{"tag": "turn", "child": "꽃향기 맡자 느긋하게 쉬자.", "turn": 1, "vocab": 467, "stage": 5, "T": 0.5254, "phi": 30.6246, "C": 0.0992}
+{"tag": "turn", "child": "까르르 웃자 색연필로 동그라미를 그려 보자.", "turn": 2, "vocab": 467, "stage": 5, "T": 0.5305, "phi": 30.6079, "C": 0.0745}
+{"tag": "turn", "child": "반갑구나 창가에서 까치를 반기며 아침밥을 베개를 베고 몸을 토닥이자.", "turn": 3, "vocab": 467, "stage": 5, "T": 0.5345, "phi": 30.6428, "C": 0.0626}
+{"tag": "turn", "child": "가슴으로 사뿐사뿐 뛰자.", "turn": 4, "vocab": 467, "stage": 5, "T": 0.5371, "phi": 30.7435, "C": 0.074}
+{"tag": "turn", "child": "", "turn": 5, "vocab": 467, "stage": 5, "T": 0.5356, "phi": 30.4618, "C": 0.1363}
+{"tag": "turn", "child": "", "turn": 6, "vocab": 467, "stage": 5, "T": 0.5339, "phi": 30.1862, "C": 0.1781}
+{"tag": "turn", "child": "", "turn": 7, "vocab": 467, "stage": 5, "T": 0.5294, "phi": 30.0315, "C": 0.1711}
+{"tag": "turn", "child": "색칠하고 라일락 멋지구나 크레용으로 꽃을 그리자.", "turn": 8, "vocab": 467, "stage": 5, "T": 0.5335, "phi": 29.6267, "C": 0.2412}
+{"tag": "turn", "child": "", "turn": 9, "vocab": 467, "stage": 5, "T": 0.5387, "phi": 29.32, "C": 0.2608}
+{"tag": "turn", "child": "반짝이는 별과 둥근 달을 가리키고 따뜻한 이불 덮고 새근새근 쉬자.", "turn": 10, "vocab": 467, "stage": 5, "T": 0.5407, "phi": 29.0855, "C": 0.2529}
+{"tag": "turn", "child": "", "turn": 11, "vocab": 467, "stage": 5, "T": 0.5381, "phi": 28.9216, "C": 0.2262}
+{"tag": "turn", "child": "", "turn": 12, "vocab": 467, "stage": 5, "T": 0.5348, "phi": 28.6412, "C": 0.2425}
+{"tag": "turn", "child": "", "turn": 13, "vocab": 467, "stage": 5, "T": 0.5318, "phi": 28.4341, "C": 0.2319}
+{"tag": "turn", "child": "쌓고 인형을 만져 보자.", "turn": 14, "vocab": 467, "stage": 5, "T": 0.5306, "phi": 28.483, "C": 0.177}
+{"tag": "turn", "child": "기특하구나 심장 소리를 내네", "turn": 15, "vocab": 467, "stage": 5, "T": 0.5311, "phi": 28.4739, "C": 0.1266}
+{"tag": "turn", "child": "", "turn": 16, "vocab": 467, "stage": 5, "T": 0.5361, "phi": 28.2111, "C": 0.1675}
+{"tag": "turn", "child": "", "turn": 17, "vocab": 467, "stage": 5, "T": 0.5388, "phi": 28.0119, "C": 0.177}
+{"tag": "turn", "child": "", "turn": 18, "vocab": 467, "stage": 5, "T": 0.5431, "phi": 27.8842, "C": 0.1622}
+{"tag": "turn", "child": "", "turn": 19, "vocab": 467, "stage": 5, "T": 0.545, "phi": 27.6912, "C": 0.1714}
+{"tag": "turn", "child": "", "turn": 20, "vocab": 467, "stage": 5, "T": 0.5413, "phi": 28.0551, "C": 0.2292}
+{"tag": "turn", "child": "", "turn": 21, "vocab": 467, "stage": 5, "T": 0.5357, "phi": 28.1021, "C": 0.1745}
+{"tag": "turn", "child": "", "turn": 22, "vocab": 467, "stage": 5, "T": 0.5302, "phi": 28.2385, "C": 0.1631}
+{"tag": "turn", "child": "사랑스럽구나 손뼉 치며 발꿈치를 토끼와 숲속을 탐험하자.", "turn": 23, "vocab": 467, "stage": 5, "T": 0.5193, "phi": 28.3044, "C": 0.1339}
+{"tag": "turn", "child": "딸랑이를 꽃향기 맡자.", "turn": 24, "vocab": 467, "stage": 5, "T": 0.5126, "phi": 28.2101, "C": 0.1221}
+{"tag": "turn", "child": "편안하구나 딸랑이가 맑은 소리를 내네", "turn": 25, "vocab": 467, "stage": 5, "T": 0.5143, "phi": 28.3036, "C": 0.1135}
+{"tag": "turn", "child": "부드럽고 향기는 달콤해 구름을 바라보자.", "turn": 26, "vocab": 467, "stage": 5, "T": 0.52, "phi": 28.2848, "C": 0.0851}
+{"tag": "turn", "child": "", "turn": 27, "vocab": 467, "stage": 5, "T": 0.5233, "phi": 28.275, "C": 0.0625}
+{"tag": "turn", "child": "", "turn": 28, "vocab": 467, "stage": 5, "T": 0.519, "phi": 28.1242, "C": 0.089}
+{"tag": "turn", "child": "", "turn": 29, "vocab": 467, "stage": 5, "T": 0.5156, "phi": 28.1897, "C": 0.082}
+{"tag": "turn", "child": "물결이 반짝이고 구름이 춤추네.", "turn": 30, "vocab": 467, "stage": 5, "T": 0.5146, "phi": 28.0927, "C": 0.0865}
+{"tag": "turn", "child": "", "turn": 31, "vocab": 467, "stage": 5, "T": 0.512, "phi": 28.1601, "C": 0.0807}
+{"tag": "turn", "child": "", "turn": 32, "vocab": 467, "stage": 5, "T": 0.5111, "phi": 28.3021, "C": 0.0991}
+{"tag": "turn", "child": "", "turn": 33, "vocab": 467, "stage": 5, "T": 0.5101, "phi": 28.5898, "C": 0.1557}
+{"tag": "turn", "child": "", "turn": 34, "vocab": 467, "stage": 5, "T": 0.5062, "phi": 28.9843, "C": 0.2273}
+{"tag": "turn", "child": "", "turn": 35, "vocab": 467, "stage": 5, "T": 0.4993, "phi": 28.9513, "C": 0.169}
+{"tag": "summary", "beta": "0.0", "seed": 12345, "warmup_beta": "0.0", "warmup_reps_used": 14, "warm_vocab": 467, "phi_start": 30.6365, "phi_end": 28.9513, "phi_drift": -1.6852, "phi_min": 27.6912, "phi_max": 30.7435, "phi_spark": "▇▇▇▇█▇▆▆▅▄▄▃▃▂▂▂▂▁▁▁▁▁▂▂▂▂▂▂▁▂▁▂▂▃▃▃", "T_min": 0.4993, "T_max": 0.545, "T_spark": "▄▄▅▆▆▆▆▅▆▇▇▆▆▅▅▅▆▇▇█▇▆▅▄▃▃▄▄▄▃▃▂▂▂▂▁", "vocab_start": 467, "vocab_end": 467}
