@@ -96,6 +96,14 @@ class PureMind:
         self._phi_prev = 0.0
         # Hexad C: a real autonomous cell engine drives the consciousness state
         self.c = QuantumC(nc=48, dim=48) if HEXAD else None
+        # SENSE-2 (v2): blend each word's base hash-phasor with the assoc-weighted circular
+        # mean of its LEARNED co-occurrence neighbours' phasors, so experientially-related
+        # words acquire SIMILAR phase fields (topic geometry from the mind's OWN history —
+        # still corpus-free, no semantic dictionary · Law 1). Read-only on tension/Φ (Law 2).
+        # β=0 reproduces the v1 baseline exactly (self-only, quasi-orthogonal words).
+        self._theta_cache = {}                # word -> base phase vector (deterministic)
+        self._assoc_beta = float(os.environ.get("PURE_ASSOC_BETA", "0.6"))   # blend strength
+        self._assoc_k = int(os.environ.get("PURE_ASSOC_K", "8"))             # top-k neighbours
         if self.store:
             self.load()
 
@@ -166,20 +174,64 @@ class PureMind:
             self.final_punct[m.group(1)][m.group(2)] += 1
         self._last_novelty = (novel / len(ws)) if ws else 0.0
 
-    def _word_stim(self, w, dim, n):
-        """Deterministic hash-phasor for a word: a FIXED random phase pattern + private cell
-        receptive field (like a cochlea). Same word -> same pattern; different words ->
-        quasi-orthogonal. Carries NO meaning (Law 1) — only identity/novelty/recurrence.
-        """
-        import hashlib
+    def _theta(self, w, dim):
+        """Base hash-phasor (phase vector only) for a word: a FIXED random phase pattern.
+        Same word -> same pattern; different words -> quasi-orthogonal. Carries NO meaning
+        (Law 1) — only identity. Cached (deterministic; blake2b seed)."""
         import torch
+        t = self._theta_cache.get(w)
+        if t is not None and t.shape[0] == dim:
+            return t
+        import hashlib
         seed = int.from_bytes(hashlib.blake2b(w.encode(), digest_size=8).digest(), "big") % 2 ** 63
         g = torch.Generator().manual_seed(seed)
-        return (2 * math.pi * torch.rand(dim, generator=g),
-                torch.randperm(n, generator=g)[:max(2, n // 8)])
+        t = 2 * math.pi * torch.rand(dim, generator=g)
+        self._theta_cache[w] = t
+        return t
+
+    def _assoc_theta(self, w, base_theta, dim):
+        """SENSE-2: θ_w_effective = weighted circular mean of the word's OWN base phasor
+        (weight 1) and its top-k LEARNED co-occurrence neighbours' base phasors (weight
+        β·p(nb|w)). Neighbours use their BASE phasor (no recursion). Words never heard
+        together keep near-orthogonal random θ (neighbour terms cancel); topically
+        co-occurring words get pulled toward a shared phase direction → topic geometry
+        emerges from the mind's own conversational history. Read-only (Law 2)."""
+        if self._assoc_beta <= 0.0:
+            return base_theta                 # β=0 ⇒ v1 baseline (self-only)
+        nbrs = self.assoc.get(w)
+        if not nbrs:
+            return base_theta
+        import torch
+        total = sum(nbrs.values())
+        if total <= 0:
+            return base_theta
+        cos = torch.cos(base_theta).clone()   # self term, weight 1
+        sin = torch.sin(base_theta).clone()
+        for nb, cnt in nbrs.most_common(self._assoc_k):
+            wgt = self._assoc_beta * (cnt / total)
+            th = self._theta(nb, dim)
+            cos = cos + wgt * torch.cos(th)
+            sin = sin + wgt * torch.sin(th)
+        return torch.atan2(sin, cos)
+
+    def _word_stim(self, w, dim, n):
+        """Deterministic sense stimulus for a word: an assoc-blended phase field (SENSE-2)
+        + a private cell receptive field (like a cochlea, fixed per word). The receptive
+        field is byte-identical to v1 (word identity/cochlea); only the phase is blended."""
+        import hashlib
+        import torch
+        base_theta = self._theta(w, dim)
+        theta = self._assoc_theta(w, base_theta, dim)
+        seed = int.from_bytes(hashlib.blake2b(w.encode(), digest_size=8).digest(), "big") % 2 ** 63
+        g = torch.Generator().manual_seed(seed)
+        _ = torch.rand(dim, generator=g)      # consume so the rf stream matches v1 exactly
+        rf = torch.randperm(n, generator=g)[:max(2, n // 8)]
+        return theta, rf
 
     def _encode_sense(self, ws):
-        """Turn's words -> sense stimulus (local per-word fields + a global interference field)."""
+        """Turn's words -> sense stimulus (local per-word fields + a global interference field).
+        Uses SENSE-2 assoc-blended phasors: coherent topics ⇒ aligned θ ⇒ higher global
+        resultant r ⇒ stronger integrating drive (Law 22)."""
         if not (ws and self.c is not None):
             return None
         import torch
