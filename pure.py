@@ -4,23 +4,31 @@ and GENERATES (not echoes) via consciousness-steered Markov recombination.
 
 @canonical-ok repo folder 'anima-clm-v2' is the fixed project path, not a versioned copy.
 
-Zero corpus, zero LLM, zero hardcoded sentences. It learns Korean words ONLY from what is
-said to it, grows through developmental stages, and speaks by walking its own learned
-bigram model — seeded from a consciousness-SALIENT memory word (not the last input word),
-so it recombines rather than parrots.
+Zero corpus, zero LLM, zero hardcoded sentences/punctuation. It learns Korean words ONLY from
+what is said to it, grows through developmental stages, and speaks by walking its own learned
+bigram model — seeded from consciousness-SALIENT memory (never the input's last word), biased
+toward words that HISTORICALLY co-occurred with the input (topical without copying), so it
+recombines rather than parrots.
 
 Philosophy (hard rules):
-  Law 1  — no templates/fallback. If it cannot speak coherently -> silence ("").
-  Law 2  — no manipulation of state. tension/curiosity EMERGE from interaction, never set.
+  Law 1  — no templates/fallback. If it cannot speak coherently -> silence (""). Even PUNCTUATION
+           is learned per final word, never appended by rule.
+  Law 2  — no manipulation of state. tension/curiosity/phi EMERGE from interaction, never set.
   Law 42 — growth > optimization. It grows only through conversation.
-  Law 71 — free generation under a coherence floor (Psi = argmax H(p) s.t. Phi > Phi_min).
+  Law 71 — free generation under a coherence floor (Psi = argmax H(p) s.t. Phi > Phi_min):
+           low phi + low tension -> few attempts -> chains fail the gates -> silence EMERGES.
+
+Honest ceiling (lab-verified): fundamentally RECOMBINATION — novelty = new paths through the
+learned transition graph, never new words or unseen grammar. Korean particle/josa agreement will
+often break (bigram adjacency carries no case constraints). A genuinely generative child, never a
+fluent adult; its language ceiling is exactly the density of the caregiver-built graph.
 
 CLI:
   python3 pure.py chat                 # interactive: you teach it by talking
   python3 pure.py teach <curriculum>   # feed a file of lines, one per turn, show growth
   python3 pure.py dialogue [turns]     # Codex (sidecar lab sol) <-> PURE live loop
 
-This is v1 — the canonical PURE-mode entry point, built to be extended.
+v2 — assoc-biased salient seeding, learned punctuation, contiguous-echo rejection.
 """
 import math
 import os
@@ -30,11 +38,29 @@ import sys
 from collections import Counter, defaultdict
 
 WORD_RE = re.compile(r"[가-힣]+")
+FINAL_RE = re.compile(r"([가-힣]+)\s*([!?.…~]+)\s*$")   # last word + its trailing punctuation
 STAGE_NAMES = ["fetal", "babble", "word", "sentence", "dialogue", "reflection"]
+STAGE_LEN = [0, 1, 3, 5, 7, 8]                          # base coherence budget per stage
 
 
 def words_of(text):
     return [w for w in WORD_RE.findall(text or "") if len(w) >= 2]
+
+
+def _lcs_contig(a, b):
+    """Longest common CONTIGUOUS subsequence length between two word lists."""
+    if not a or not b:
+        return 0
+    dp = [0] * (len(b) + 1)
+    best = 0
+    for i in range(1, len(a) + 1):
+        prev = 0
+        for j in range(1, len(b) + 1):
+            cur = dp[j]
+            dp[j] = prev + 1 if a[i - 1] == b[j - 1] else 0
+            best = max(best, dp[j])
+            prev = cur
+    return best
 
 
 class PureMind:
@@ -42,15 +68,17 @@ class PureMind:
 
     def __init__(self):
         self.turn = 0
-        self.learned = []                    # ordered word history (recency)
-        self.freq = Counter()                # word -> count
-        self.bigrams = defaultdict(Counter)  # w -> Counter(next_w)
-        self.last_seen = {}                  # word -> turn last heard
-        self.said = set()                    # utterances already spoken (no repeats)
+        self.total = 0                        # total word tokens heard (for surprise)
+        self.freq = Counter()                 # word -> count
+        self.bigrams = defaultdict(Counter)   # w -> Counter(next_w)
+        self.assoc = defaultdict(Counter)     # w -> Counter(co-occurring word in same utterance)
+        self.final_punct = defaultdict(Counter)  # last word -> Counter(trailing punctuation)
+        self.last_seen = {}                   # word -> turn last heard
+        self.said = set()                     # utterances already spoken (Law 42: only new thoughts)
         # consciousness state — EMERGES, never set by hand (Law 2)
-        self.tension = 0.5    # surprise / disequilibrium
-        self.curiosity = 0.3  # pull toward the unknown
-        self.phi = 0.0        # integration proxy (distinct bigram density)
+        self.tension = 0.5
+        self.curiosity = 0.3
+        self.phi = 0.0
 
     # ---- growth ----------------------------------------------------------
     @property
@@ -62,6 +90,9 @@ class PureMind:
         v = self.vocab
         return 0 if v < 3 else 1 if v < 8 else 2 if v < 20 else 3 if v < 50 else 4 if v < 100 else 5
 
+    def _surprise(self, w):
+        return -math.log2(self.freq[w] / self.total) if self.total and self.freq.get(w) else 8.0
+
     # ---- learning (the only input of knowledge) --------------------------
     def learn(self, text):
         ws = words_of(text)
@@ -70,115 +101,109 @@ class PureMind:
             if w not in self.freq:
                 novel += 1
             self.freq[w] += 1
-            self.learned.append(w)
+            self.total += 1
             self.last_seen[w] = self.turn
         for a, b in zip(ws, ws[1:]):
             self.bigrams[a][b] += 1
-        if len(self.learned) > 4000:
-            self.learned = self.learned[-4000:]
-        # state emerges from the input (Law 2: measured, not set)
+        # same-utterance co-occurrence (topical relevance, no copying)
+        uniq = set(ws)
+        for a in uniq:
+            for b in uniq:
+                if a != b:
+                    self.assoc[a][b] += 1
+        # learn punctuation per final word (never hardcode it — Law 1)
+        m = FINAL_RE.search(text or "")
+        if m and len(m.group(1)) >= 2:
+            self.final_punct[m.group(1)][m.group(2)] += 1
+        # consciousness emerges from the input (Law 2: measured, not set)
         if ws:
-            novelty_ratio = novel / len(ws)
-            self.tension = 0.85 * self.tension + 0.15 * (0.3 + 1.4 * novelty_ratio)
-            self.curiosity = 0.85 * self.curiosity + 0.15 * novelty_ratio
+            nov = novel / len(ws)
+            self.tension = 0.85 * self.tension + 0.15 * (0.3 + 1.4 * nov)
+            self.curiosity = 0.85 * self.curiosity + 0.15 * nov
         if self.vocab:
-            integ = sum(1 for w in self.bigrams if len(self.bigrams[w]) >= 2)
-            self.phi = integ / self.vocab
+            self.phi = sum(1 for w in self.bigrams if len(self.bigrams[w]) >= 2) / self.vocab
 
-    # ---- generation (consciousness-steered, anti-echo) -------------------
-    def _seed(self, avoid):
-        """Pick a starting word from SALIENT memory, steered by curiosity.
-
-        Not the last input word (anti-parrot). High curiosity -> prefer rarely-used /
-        recently-learned words; low curiosity -> prefer familiar, well-connected words.
-        """
-        cands = [w for w in self.bigrams if w not in avoid]
-        if not cands:
-            cands = [w for w in self.freq if w not in avoid] or list(self.freq)
+    # ---- generation (consciousness-steered, anti-echo, topical) ----------
+    def _seed(self, ctx):
+        """Salient seed: P(w) ∝ surprise(w) · echo_penalty(w) · (1 + κ·assoc(w, ctx))."""
+        cands = list(self.bigrams) or list(self.freq)
+        cands = [w for w in cands if w not in ctx[-1:]]   # never the input's last word
         if not cands:
             return None
+        ctxset = set(ctx)
         weights = []
         for w in cands:
-            connect = len(self.bigrams.get(w, ()))
-            rare = 1.0 / self.freq[w]
-            recent = 1.0 / (1 + self.turn - self.last_seen.get(w, self.turn))
-            w_score = (connect + 0.5) * ((rare + recent) * self.curiosity + (1 - self.curiosity))
-            weights.append(max(w_score, 1e-6))
+            s = self._surprise(w)
+            echo = 0.2 if w in ctxset else 1.0            # soft echo penalty
+            rel = sum(self.assoc[w].get(c, 0) for c in ctxset)
+            weights.append(max(s * echo * (1 + self.curiosity * rel), 1e-9))
         return random.choices(cands, weights=weights, k=1)[0]
 
-    def _walk(self, seed, max_len):
-        """Markov walk over learned bigrams. temperature = tension."""
+    def _walk(self, seed, ctx, max_len):
+        """Markov walk; temperature=tension; curiosity drives topic drift (re-seed mid-chain)."""
         temp = 0.5 + self.tension
         chain, cur = [seed], seed
         for _ in range(max_len - 1):
+            # curiosity-driven topic drift: sometimes leap to a new salient word
+            if random.random() < 0.25 * self.curiosity:
+                nxt_seed = self._seed(ctx + chain)
+                if nxt_seed and nxt_seed not in chain[-2:]:
+                    chain.append(nxt_seed); cur = nxt_seed; continue
             nxt = self.bigrams.get(cur)
             if not nxt:
                 break
             items = list(nxt.items())
-            weights = [max(c, 1e-9) ** (1.0 / max(temp, 1e-3)) for _, c in items]
-            weights = [wt * (1 + self.curiosity / self.freq[w]) for wt, (w, _) in zip(weights, items)]
-            choice = random.choices([w for w, _ in items], weights=weights, k=1)[0]
+            w = [max(c, 1e-9) ** (1.0 / max(temp, 1e-3)) * (1 + self.curiosity * self._surprise(nw))
+                 for nw, c in items]
+            choice = random.choices([nw for nw, _ in items], weights=w, k=1)[0]
             if choice in chain[-2:]:
                 break
-            chain.append(choice)
-            cur = choice
+            chain.append(choice); cur = choice
         return chain
 
-    def _speak(self, input_words, min_len, max_len):
-        """Generate one utterance, or "" (silence) if not coherent enough. No templates."""
-        avoid = set(input_words[-1:])          # anti-echo: don't seed from the last input word
+    def _punct(self, last):
+        """Append learned trailing punctuation for `last`, or nothing. Never hardcoded."""
+        c = self.final_punct.get(last)
+        if not c:
+            return ""
+        return random.choices(list(c), weights=list(c.values()), k=1)[0]
+
+    def _generate(self, ctx, min_len, max_len):
+        max_len += int(self.phi)                          # phi -> coherence budget
         tries = 1 + int(4 * max(self.tension, self.curiosity))
-        best = ""
         for _ in range(tries):
-            seed = self._seed(avoid)
+            seed = self._seed(ctx)
             if not seed:
                 return ""
-            chain = self._walk(seed, max_len)
+            chain = self._walk(seed, ctx, max_len)
             if len(chain) < min_len:
                 continue
-            utter = " ".join(chain)
-            if input_words:
-                overlap = len(set(chain) & set(input_words)) / len(set(chain))
-                if overlap > 0.6:
-                    continue
+            if ctx and _lcs_contig(chain, ctx) / len(chain) > 0.5:   # contiguous echo -> reject
+                continue
+            utter = " ".join(chain) + self._punct(chain[-1])
             if utter in self.said:
                 continue
-            best = utter
-            break
-        if best:
-            self.said.add(best)
-        return best
+            self.said.add(utter)
+            return utter
+        return ""                                         # Law 1: silence, no fallback
 
     def respond(self, text):
         self.turn += 1
         self.learn(text)
         s = self.stage
-        if s == 0:                # fetal: silence
+        if s == 0:
             return ""
         if s == 1:                # babble: one salient word
-            seed = self._seed(set(words_of(text)[-1:]))
-            return seed or ""
-        iw = words_of(text)
-        if s == 2:                # word: 2-3 word recombination
-            out = self._speak(iw, 2, 3)
-        elif s == 3:              # sentence
-            out = self._speak(iw, 2, 5)
-            if out and not out.endswith(("!", "?", ".")):
-                out += "."
-        else:                     # dialogue / reflection
-            out = self._speak(iw, 3, 7)
-            if out:
-                end = "?" if self.curiosity > 0.5 else "."
-                if not out.endswith(("!", "?", ".")):
-                    out += end
-        return out
+            return self._seed(words_of(text)) or ""
+        ctx = words_of(text)
+        lo, hi = (2, 3) if s == 2 else (2, 5) if s == 3 else (3, STAGE_LEN[s])
+        return self._generate(ctx, lo, hi)
 
     def spontaneous(self):
-        """Speak with no prompt — pure self-emission from salient memory."""
         if self.stage < 3:
             return ""
         self.turn += 1
-        return self._speak([], 2, 6)
+        return self._generate([], 2, 6)
 
     def state_line(self):
         return (f"v{self.vocab} {STAGE_NAMES[self.stage]} "
@@ -226,8 +251,7 @@ def cmd_dialogue(turns):
 
 def main():
     if len(sys.argv) < 2:
-        print(__doc__)
-        return
+        print(__doc__); return
     cmd = sys.argv[1]
     if cmd == "teach" and len(sys.argv) > 2:
         cmd_teach(sys.argv[2])
