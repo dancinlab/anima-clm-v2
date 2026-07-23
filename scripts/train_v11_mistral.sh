@@ -48,9 +48,10 @@ mkdir -p "$CKPT_DIR"
 # save-interval 2000 = frequent small (LoRA+gate-only) checkpoints so a mid-run
 # pull point always exists (milestone plan: demo ~step 20K, then decide 80K).
 export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True"
-CMD="python -u train_v11.py \
+CMD="python3 -u train_v11.py \
   --data $DATA \
   --steps $STEPS \
+  --lr 3e-5 \
   --c-engine quantum \
   --d-engine hf \
   --hf-model $HF_MODEL \
