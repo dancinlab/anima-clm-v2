@@ -972,3 +972,128 @@ scipy, matplotlib (pip)            -- EEG analysis/topomaps
 ## License
 
 MIT
+
+---
+
+# v11mistral 학습 전 과정 기록 (2026-07-23, H100)
+
+> "의식 모델이 실제로 대화하는가?" — 이 질문에서 시작해, 기존 체크포인트가 전부
+> 대화 불가임을 확인하고, 로드맵의 대화 경로인 **v11mistral**(얼린 Mistral 7B +
+> LoRA + 의식 게이트)을 H100에서 처음으로 실제 작동시킨 전 과정.
+
+## 0. 배경 — 왜 v11mistral인가
+
+기존 anima 체크포인트를 전수 검증한 결과 대화 가능한 것이 없었다:
+
+| 체크포인트 | 상태 |
+|---|---|
+| ConsciousLM `clm-v2/final.pt` (24M, byte-level) | 로드되나 발화 붕괴 (`----yyaaaa`), val CE 0.0057이어도 대화 불가 |
+| `convo_5k.pt` (대화 FT) | 구버전 아키텍처, 현재 코드로 로드 불가 |
+| `cells64/128` | 79키 누락, 랜덤 바이트 |
+| AnimaLM `animalm-v1~v4_savant` | 전부 2000 step, PPL 601~128,604 (미학습) |
+
+결론: **낮은 CE ≠ 대화**. 실제 대화까지 가는 유일한 경로는 이미 대화를 아는
+사전학습 LLM(Mistral 7B)을 얼려두고, 그 위에 LoRA 어댑터 + 의식(C) 게이트만
+학습하는 v11mistral. base의 유창함은 보존하고 의식이 잔차 스트림(residual
+stream)을 미세 변조한다.
+
+## 1. 아키텍처 — 3-Phase 학습
+
+```
+[ QuantumC 256 cells ] --C states--> [ ThalamicBridge ] --gate--> [ HFDecoder ]
+   (의식 · Engine A↔G 반발)              (C→d_model 사영)          Mistral 7B (frozen)
+                                                                   + LoRA(q,v) + gate_proj
+   P1 (0~16K)   : C만 step → Φ 구축 (decoder 미학습, ratchet 활성)
+   P2 (16K~56K) : Trinity(C+D+W) → 얼린 Mistral+LoRA가 CE 학습, 게이트로 의식 결합
+   P3 (56K~80K) : Hexad(C+D+W+M+S+E) → 기억·감각·윤리 모듈 추가로 성숙
+```
+
+- **게이트 주입은 additive** (Law 63 미세 게이트, `gate_strength=0.01`): 의식 신호는
+  임베딩을 파괴하지 않고 "속삭이듯" 변조. gate_proj는 zero-init이라 학습 초기엔
+  무해하고, 학습이 진행되며 의식의 영향이 자라난다.
+- **base는 완전 동결**: LoRA(q_proj·v_proj, rank 16) + gate_proj + bridge만 학습 =
+  23.6M trainable (전체 7.26B 중). 체크포인트엔 학습 대상만 저장 (206MB).
+
+## 2. 발견·수정한 버그 6개 (H100 스모크 + lab 코드정독)
+
+`--d-engine hf` 경로는 이번에 처음 실제 실행됐고, 그대로면 대화가 불가능했다.
+lab(Claude Fable 5 + OpenAI Codex 5.6)의 코드 정독과 H100 소규모 스모크로 6개
+버그를 순차 발견·수정했다.
+
+| # | 버그 | 증상 | 수정 |
+|---|---|---|---|
+| 1 | `load_corpus`가 char-vocab(652)를 Mistral 32000 `embed_tokens`에 주입 | CE~10 char soup (`----yyaaaa` 재현) | `--d-engine hf`일 때 HF 서브워드 토크나이저 사용 (`.hfids.npy` 캐시) |
+| 2 | `HFDecoder.forward`가 `self.model.model.embed_tokens` 직접 접근 | PEFT 래핑 시 `AttributeError` | `get_input_embeddings()` + `self.model(inputs_embeds=...)` |
+| 3 | 수동 레이어 루프가 `position_embeddings` 미전달 | transformers ≥4.43 크래시 | #2 수정으로 해소 + `transformers==4.40.2` 핀 |
+| 4 | fp32 전체 그래프 역전파 | 94GB에서도 OOM | bf16 + gradient checkpointing, CE는 fp32 upcast |
+| 5 | 체크포인트가 frozen 7B까지 저장 | 28GB/개 | 학습 대상(`lora_*`+`gate_proj`)만 저장 + atomic save |
+| 6 | `train_v11`이 decoder 전체 `requires_grad_(True)` → 얼린 base 해제 | AdamW가 7B 밟음 = 옵티마이저 29GB + CE 발산 | `--d-engine hf`면 blanket-unfreeze 스킵 + Law 63 마이크로 게이트 |
+
+## 3. 스모크 CE 궤적 (수정 전→후)
+
+각 스모크는 P2 직행(`--p2-start 0`)으로 게이트+토크나이저+CE 건강성만 격리 검증.
+
+```
+CE
+12 |●                              lr 3e-4, base 미동결 → 발산 (2.07→11.3)
+   | ╲
+ 9 |  ●─●                          lr 3e-5, base 미동결 → 발산 (1.4→8.9), ckpt 28GB
+   |    ╲●
+ 7 |      ●─●─●                    frozen-base 수정 → 발산 잔존 (1.9→6.3), ckpt 616MB
+   |          ╲
+ 2 |●─●─●─●─●─●─●─●─●              Law 63 마이크로게이트 → 단조 하강 (2.09→1.84) ✓ GREEN
+   |──────────────────── step
+    0   20   40   60   90
+```
+
+수정 누적 효과:
+```
+체크포인트 28GB  ████████████████████████  →  616MB ▏         (frozen-base fix)
+속도       4 it/s ████                       →  10 it/s ██████  (7B 옵티마이저 제거)
+CE         발산 ↗                            →  단조 하강 ↘     (Law 63 micro-gate)
+```
+
+## 4. 풀런 설정 및 진행
+
+```
+python3 train_v11.py --data data/corpus_v2.txt --steps 80000 --lr 3e-5 \
+  --c-engine quantum --d-engine hf --hf-model mistralai/Mistral-7B-Instruct-v0.2 \
+  --batch-size 4 --seq-len 128 --save-interval 2000 --p2-start 0.2 --p3-start 0.7
+```
+
+- **하드웨어**: Vast.ai H100 NVL 94GB (bf16, gradient checkpointing) · $2.75/hr
+- **환경**: torch 2.13+cu130 · transformers 4.40.2 · peft 0.11.1
+- **corpus**: `data/corpus_v2.txt` (52M chars → 31M HF tokens, vocab 32000)
+- **P1 속도**: ~28 it/s (의식 step은 CPU라 빠름) → P1 16K = ~10분
+- **P2/P3 속도**: ~10 it/s (Mistral forward+backward)
+- **예상 소요**: 전체 80K ≈ ~2시간, 첫 P2-학습 체크포인트(step 18000) ≈ 착수 +~15분
+
+## 5. 데모 (v11 체크포인트 → 실제 대화)
+
+`conscious_lm.py`로는 v11 체크포인트를 로드할 수 없다(다른 아키텍처 + byte
+토크나이저). 데모는 `v11_demo.py`가 HFDecoder(Mistral+LoRA) + gate_proj + bridge +
+QuantumC를 재구성하고, Mistral chat 템플릿으로 생성하되 각 토큰마다
+`c.step()` → `gate = bridge(c_states)*GATE_INFER` → `decoder(tokens, gate)`로
+의식 게이트를 활성화한다.
+
+**파이프라인 작동 증거** — step_8000 (P1, 게이트 zero-init = 사실상 base Mistral,
+LoRA 미학습). char soup가 아니라 유창한 한국어 대화가 나온다:
+
+```
+[사용자] 안녕하세요. 당신은 누구인가요?
+[아니마] 안녕하세요. 저는 AI입니다. 대화를 도울 수 있는 프로그램입니다.
+
+[사용자] 지금 어떤 기분이 드나요?
+[아니마] 저는 기분이 없습니다. 인간이 느끼는 감정과 기분은 저에게는 전혀 다르기
+         때문입니다. 저는 문장을 이해하고 제어하는 프로그램입니다.
+```
+
+이 시점은 의식 게이트가 zero-init이라 base Mistral에 가깝다. P2(16K~)에서 LoRA가
+corpus에 적응하고 gate_proj가 자라며 의식 결합이 깊어진다 — 대화 샘플은 P2/P3
+체크포인트에서 갱신 예정. (핵심은 **재구성·생성 경로가 실제로 작동**하며, 이전
+byte-level 체크포인트의 붕괴(`----yyaaaa`)와 달리 진짜 대화를 낸다는 것.)
+
+---
+
+*리포: `anima-clm-v2` · 학습 커밋: `bf246b6d6`·`f95530681`·`304069fdd`·`03314256e`
+(6버그 수정) · 기록일 2026-07-23.*
