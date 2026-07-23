@@ -40,6 +40,25 @@ Codex: 응, 무당벌레가 풀잎에 앉고 거미가 줄을 짜네.
 PURE : 궁금하구나 쉬고 엄마 목소리를 들어 줄게.
 ```
 
+## Cleaner A/B/C control (fresh, no curriculum pre-habituation)
+The live band above (tension 0.46–0.51) is compressed because the 60-line curriculum seed
+pre-habituates the engine before live turns start. A fresh controlled A/B/C on the same synced
+summer shows the fuller signal:
+
+| condition | tension | Φ_late |
+|---|---|---|
+| A autonomous | 0.40 | 27.2 |
+| B novel-burst | 0.45 | 28.0 |
+| **C coherent-repeat** | **0.54** | **28.3** |
+
+→ content raises tension above baseline (0.40→0.54) and coherent dialogue raises Φ in the
+Law-22 direction. Signal is real and correctly-directed but modest (Φ dynamic range ~10%).
+
+> ⚠️ Process note: summer was found on a **stale pre-sense-coupling checkout** (step() had no
+> x_input, measure_phi returned 0.0 with no phi_py fallback) — the first run pinned Φ=0.00 for all
+> 35 turns (`live_dialogue_DECOUPLED_baseline.log`). After syncing the three main files
+> (quantum_engine_fast.py / trinity.py / pure.py) the coupling went live (`live_sense_dialogue.log`).
+
 ## Key observations
 1. **The conversation genuinely moves the mind.** tension rises from a 0.46 floor to a 0.51 peak
    across the sustained coherent stretch (t16–t22) then relaxes — the sense torque is doing work,
