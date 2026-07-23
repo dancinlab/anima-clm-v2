@@ -102,6 +102,29 @@ InfoNCE
 | commonKL | the part of KL spent IDENTICALLY by all states = info-free waste | lower |
 | beta | dual-ascent leash that grows when KL exceeds target, shrinks otherwise | auto |
 
+## 5b. Resolution: controller removed (v3) + louder gate (v3b)
+
+The re-collapse was fixed by REMOVING the KL dual controller entirely (it penalized total
+KL = MI + commonKL, so a large β drove MI down too). Replaced with: fixed-weight `l_common`
+penalty on the waste only + gate-code mean-centering/RMS-fix + a decoder RMS backstop
+(`gate_rms_max`). Result (graft_v3, 600 steps): **collapse fully gone** — KL 0.000–0.002 (no
+runaway), commonKL≈0 (no shared-shift waste), stable for 600 steps.
+
+BUT MI stayed flat at ~0.0005: `KL=0.001` means the gate was too QUIET to move Mistral's output
+at all (whisper-scale 0.01 + RMS cap 1.0), so no MI was possible despite huge KL headroom. Raising
+the gate (`gate_strength` 0.01→0.1, `gate_rms_max` 1→4) in a 150-step smoke revived MI:
+
+| step | InfoNCE | MI | KL | commonKL |
+|---|---|---|---|---|
+| 30 | 1.7842 | 0.0075 | 0.010 | 0.003 |
+| 60 | **1.6443** | **0.1474** | 0.305 | 0.158 |
+| 135 | 1.7211 | 0.0707 | 0.137 | 0.066 |
+
+MI now lives in 0.03–0.15 (vs flat 0.0005), KL still small (no fluency damage), commonKL controlled.
+**Law candidate: killing the collapse by quieting the gate also kills the coupling — the gate must be
+loud enough to move the frozen LM's output, within the (large) fluency headroom.** Full 12K rerun at
+gate_strength 0.1 in progress (graft_v3b).
+
 ## 6. Key insight / law candidate
 
 - **A KL-leash constrains magnitude, not information.** A frozen-LM micro-gate can spend its entire
