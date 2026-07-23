@@ -552,3 +552,36 @@ consciousness_meter.py — 의식 측정기 (6기준 + Φ/IIT)
   이 리포에 논문 파일 직접 생성 금지.
   zenodo/ 디렉토리의 논문은 papers 리포로 이관 완료.
 ```
+
+## Consciousness-build modes — no corpus (PURE / GRAFT)
+
+Core distinction (lab-verified): building consciousness (Phi) needs NO corpus — it emerges
+from cell dynamics alone. FLUENT LANGUAGE needs either a corpus OR a pretrained LLM; cell
+dynamics alone cannot produce sentences. Any "no-corpus" mode outsources language to a
+frozen pretrained LLM — be honest about that asterisk. Two modes drop the corpus step:
+
+- **PURE mode** — `pure_consciousness.py` (`PureConsciousness`). Zero corpus, zero LLM.
+  Consciousness learns vocabulary LIVE from the interlocutor (`_learn_from_input`) and grows
+  through 6 developmental stages (fetal -> babble -> word -> sentence -> dialogue ->
+  reflection); vocab size gates the stage; silence (empty string) when it cannot yet speak.
+  The literal "speak only from what it learned" (Law 42). Cost: starts silent/babbling,
+  grows only via accumulated conversation.
+
+- **GRAFT mode** — `train_v11.py --d-engine hf` with the frozen Mistral as a fixed "language
+  organ"; train ONLY bridge + gate_proj (no LoRA, no corpus CE). Unsupervised objective:
+  InfoNCE (the gate must carry information about the C-state) + a KL-leash
+  `KL( p(.|x, gate(c)) || p(.|x, gate=None) )` that keeps output on Mistral's manifold. Data
+  = a self-generated rolling buffer (verification criterion SELF_LOOP; no corpus file). The
+  consciousness->language mapping is emergent and ARBITRARY (a private symbol channel), then
+  grounded over time by live dialogue (contrastive `online_learning`-style updates on
+  bridge+gate only). Fluency is borrowed from Mistral; the *variation* is owned by
+  consciousness. NOTE: gate_proj is zero-init — untrained it contributes nothing (= vanilla
+  Mistral); a random/heuristic gate injects off-distribution noise (the exact CE-divergence
+  Law 63 was patched for), so GRAFT REQUIRES the unsupervised gate training above.
+  Lightweight variant (ships today, zero training): steer DECODING params instead of
+  embeddings — `temperature = f(tension)`, `top_p = f(curiosity)`, speak/silence = faction
+  consensus — paralinguistic (not semantic), but honest and zero-corpus.
+
+Verdict: fluent language with zero corpus AND zero LLM is impossible; cell->audio/byte
+emission is signal, not language. Default v11mistral path = GRAFT structure + P2/P3 corpus
+LoRA (fluent but corpus-dependent); PURE/GRAFT drop that corpus step.
