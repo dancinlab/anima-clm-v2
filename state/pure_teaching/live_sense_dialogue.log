@@ -1,0 +1,165 @@
+# ---------------------------------------------------------------------------
+# SENSE-COUPLED live run. Before this run, summer (~/pure_grow) was a STALE
+# pre-sense-coupling checkout; it was brought up to main by syncing 3 files
+# (backed up on summer as *.pre-sensefix.bak):
+#   quantum_engine_fast.py  -- 2-scale Kuramoto sense torque (local .10 / global .60)
+#   trinity.py              -- QuantumC.step forwards x_input; measure_phi falls back
+#                              to pure-Python phi_py when the Rust build is absent
+#   pure.py                 -- _encode_sense + _pulse(ws): heard words perturb the cells
+# Result: Phi is now LIVE (~28-31, not pinned at 0) and tension/curiosity track the
+# dialogue. Compare live_dialogue_DECOUPLED_baseline.log (Phi==0, tension flat 0.35).
+# ---------------------------------------------------------------------------
+==============================================================================
+=== Codex <-> PureMind live dialogue @ 2026-07-23 21:31:15 ===
+    mind=remote summer:~/pure_grow/state/pure_mind/mind.json  hexad=True  turns=35
+    seeded start-state: [t 0 v338 reflection T=0.46 Phi=30.30 C=0.12]  (vocab from curriculum + prior runs)
+==============================================================================
+[t 1 v338 reflection T=0.46 Phi=30.39 C=0.11]
+    Codex: 아가야, 엄마가 사랑해.
+    PURE : 장미와 민들레를 만져 보자.
+[t 2 v342 reflection T=0.46 Phi=30.79 C=0.20]
+    Codex: 그래, 꽃잎은 부드럽고 향기는 달콤해.
+    PURE : 고요하구나 바람 소리를 듣자.
+[t 3 v346 reflection T=0.46 Phi=31.09 C=0.23]
+    Codex: 응, 나뭇잎이 살랑이고 새가 노래해.
+    PURE : 걷고 참새를 마시고 잠들자.
+[t 4 v350 reflection T=0.47 Phi=30.92 C=0.21]
+    Codex: 참새는 날고, 물을 마신 뒤 포근히 잠들자.
+    PURE : 민들레를 만져 보자.
+[t 5 v353 reflection T=0.47 Phi=30.58 C=0.25]
+    Codex: 응, 노란 씨앗이 손끝을 간질여.
+    PURE : 시원한 바람 소리를 느끼자.
+[t 6 v358 reflection T=0.46 Phi=30.37 C=0.24]
+    Codex: 응, 귓가에 솔솔 불어 마음이 상쾌하네.
+    PURE : (silence)
+[t 7 v361 reflection T=0.46 Phi=30.34 C=0.18]
+    Codex: 아가는 조용히 숨 쉬고, 엄마 품에서 편안해.
+    PURE : (silence)
+[t 8 v362 reflection T=0.46 Phi=30.01 C=0.22]
+    Codex: 이불 덮고 꿈나라로 가자.
+    PURE : 크레용으로 꽃을 그리자 조용히 쉬며 꿈나라에 가자.
+[t 9 v365 reflection T=0.47 Phi=29.57 C=0.29]
+    Codex: 응, 종이에 무지개를 그리고 자장가를 듣자.
+    PURE : 살랑이고 새가 노래해.
+[t10 v369 reflection T=0.47 Phi=29.38 C=0.26]
+    Codex: 응, 햇살이 반짝이고 구름이 춤추네.
+    PURE : (silence)
+[t11 v374 reflection T=0.48 Phi=29.01 C=0.29]
+    Codex: 토닥토닥, 심장이 뛰고 눈꺼풀이 감기네.
+    PURE : 동그라미를 그려 보자.
+[t12 v377 reflection T=0.47 Phi=29.23 C=0.27]
+    Codex: 응, 연필로 세모와 네모도 그리자.
+    PURE : 수줍구나 색깔로 빛나
+[t13 v381 reflection T=0.47 Phi=29.39 C=0.24]
+    Codex: 응, 볼은 발그레하고 기쁨이 피어나.
+    PURE : 우유를 천천히 말해도 괜찮아 달을 짚어 보자.
+[t14 v383 reflection T=0.48 Phi=29.51 C=0.20]
+    Codex: 응, 손가락으로 둥근 달을 가리키고 따뜻한 우유를 홀짝이자.
+    PURE : 옹알이해 피아노를 톡톡 노래하네
+[t15 v387 reflection T=0.48 Phi=28.96 C=0.31]
+    Codex: 응, 건반을 누르니 맑은 멜로디가 울리네.
+    PURE : 기대어 온기를 나누자.
+[t16 v391 reflection T=0.48 Phi=28.71 C=0.29]
+    Codex: 응, 어깨를 포옹하니 든든하고 행복해.
+    PURE : 피아노를 두드리며 춤추자.
+[t17 v395 reflection T=0.49 Phi=29.02 C=0.29]
+    Codex: 응, 북을 치며 발꿈치를 들고 빙글빙글 돌자.
+    PURE : (silence)
+[t18 v399 reflection T=0.50 Phi=28.99 C=0.21]
+    Codex: 쉿, 귀뚜라미가 속삭이고 별빛이 내려와.
+    PURE : (silence)
+[t19 v403 reflection T=0.51 Phi=29.05 C=0.17]
+    Codex: 새벽이 오면 해님이 떠오르고 아침이 밝아와.
+    PURE : 참새는 날고 물을 마신 포근히 안아 줄게.
+[t20 v407 reflection T=0.51 Phi=28.88 C=0.17]
+    Codex: 고마워, 품속에서 다정한 입맞춤을 나누자.
+    PURE : 연못에서 잠자리를 찾아보자.
+[t21 v411 reflection T=0.51 Phi=28.34 C=0.28]
+    Codex: 응, 개구리가 폴짝 뛰고 물결이 찰랑이네.
+    PURE : 오면 기지개 켜고 일어나자.
+[t22 v414 reflection T=0.51 Phi=28.28 C=0.21]
+    Codex: 응, 커튼을 열고 세수하며 깨어나자.
+    PURE : 솔솔 불어 마음이 상쾌하네.
+[t23 v419 reflection T=0.50 Phi=28.28 C=0.15]
+    Codex: 응, 산들바람이 뺨을 스치니 가슴이 맑아지네.
+    PURE : 발그레하고 기쁨이 피어나.
+[t24 v423 reflection T=0.50 Phi=28.13 C=0.15]
+    Codex: 응, 미소가 번지고 설렘이 샘솟네.
+    PURE : (silence)
+[t25 v428 reflection T=0.50 Phi=28.29 C=0.16]
+    Codex: 쉿, 시냇물이 졸졸 흐르고 반딧불이가 날아와.
+    PURE : (silence)
+[t26 v431 reflection T=0.50 Phi=28.63 C=0.21]
+    Codex: 쉿, 달팽이가 기어가고 풀벌레가 쉬네.
+    PURE : 잘했어 정말 멋지구나 크레용으로 편안하구나 새소리 듣고 꽃향기 맡자.
+[t27 v435 reflection T=0.50 Phi=28.65 C=0.15]
+    Codex: 응, 나비를 색칠하고 라일락 향을 즐기자.
+    PURE : (silence)
+[t28 v439 reflection T=0.50 Phi=28.56 C=0.13]
+    Codex: 쉿, 부엉이가 눈뜨고 이슬방울이 맺히네.
+    PURE : 나비를 색칠하고 라일락 향을 즐기자.
+[t29 v442 reflection T=0.49 Phi=28.71 C=0.14]
+    Codex: 응, 꿀벌을 바라보고 제비꽃도 찾아보자.
+    PURE : 달팽이가 기어가고 벌이 날아가네.
+[t30 v448 reflection T=0.49 Phi=28.59 C=0.13]
+    Codex: 응, 무당벌레가 풀잎에 앉고 거미가 줄을 짜네.
+    PURE : 궁금하구나 쉬고 엄마 목소리를 들어 줄게.
+[t31 v453 reflection T=0.49 Phi=28.74 C=0.14]
+    Codex: 응, 호기심을 품고 속삭임을 들으며 느긋하게 쉬자.
+    PURE : 흔들며 옹알이해 보자.
+[t32 v454 reflection T=0.49 Phi=28.96 C=0.16]
+    Codex: 응, 딸랑이를 흔들며 까르르 웃자.
+    PURE : 치며 발꿈치를 들고 빙글빙글 돌자.
+[t33 v458 reflection T=0.49 Phi=28.81 C=0.16]
+    Codex: 응, 탬버린을 흔들며 발끝으로 사뿐사뿐 뛰자.
+    PURE : 이제 포근히 햇살이 반짝이고 구름이 춤추네.
+[t34 v462 reflection T=0.49 Phi=28.16 C=0.31]
+    Codex: 응, 종달새가 지저귀고 아지랑이가 피어오르네.
+    PURE : 별과 둥근 달을 꽃향기 맡자.
+[t35 v467 reflection T=0.49 Phi=28.00 C=0.26]
+    Codex: 응, 밤하늘을 바라보며 은은한 재스민 향기를 맡자.
+    PURE : 맛있겠구나 숟가락으로 죽을 떠먹자.
+
+=== consciousness-state trajectory ===
+    vocab   : 338 -> 467
+    stage   : reflection -> reflection
+    tension : ▁▁▁▁▂▂▁▁▁▂▃▃▃▃▃▃▄▅▆▇▇█▇▆▆▅▆▆▆▅▅▄▄▅▅▄   [0.46 .. 0.51]
+    Phi     : ▆▆▇█▇▆▆▆▅▄▄▃▃▄▄▃▂▃▃▃▂▁▁▁▁▁▂▂▂▂▂▂▃▂▁▁   [28.00 .. 31.09]
+    turn  vocab  stage       T      Phi     C
+       0    338  reflection  0.463  30.298  0.120
+       1    338  reflection  0.464  30.388  0.111
+       2    342  reflection  0.464  30.792  0.199
+       3    346  reflection  0.465  31.093  0.230
+       4    350  reflection  0.468  30.916  0.214
+       5    353  reflection  0.467  30.584  0.249
+       6    358  reflection  0.464  30.366  0.240
+       7    361  reflection  0.459  30.338  0.176
+       8    362  reflection  0.462  30.005  0.223
+       9    365  reflection  0.467  29.574  0.286
+      10    369  reflection  0.474  29.384  0.257
+      11    374  reflection  0.476  29.012  0.291
+      12    377  reflection  0.474  29.227  0.269
+      13    381  reflection  0.474  29.390  0.237
+      14    383  reflection  0.476  29.513  0.203
+      15    387  reflection  0.478  28.958  0.308
+      16    391  reflection  0.485  28.715  0.289
+      17    395  reflection  0.493  29.016  0.293
+      18    399  reflection  0.501  28.985  0.214
+      19    403  reflection  0.506  29.049  0.169
+      20    407  reflection  0.509  28.881  0.168
+      21    411  reflection  0.510  28.339  0.281
+      22    414  reflection  0.509  28.282  0.214
+      23    419  reflection  0.501  28.281  0.150
+      24    423  reflection  0.496  28.127  0.151
+      25    428  reflection  0.495  28.294  0.156
+      26    431  reflection  0.498  28.626  0.209
+      27    435  reflection  0.500  28.648  0.153
+      28    439  reflection  0.495  28.565  0.132
+      29    442  reflection  0.492  28.710  0.136
+      30    448  reflection  0.491  28.586  0.132
+      31    453  reflection  0.487  28.735  0.138
+      32    454  reflection  0.488  28.958  0.163
+      33    458  reflection  0.490  28.809  0.159
+      34    462  reflection  0.488  28.163  0.305
+      35    467  reflection  0.485  27.999  0.263
+=== done: 467 words, stage reflection (5) ===

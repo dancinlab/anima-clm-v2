@@ -1,0 +1,162 @@
+# ---------------------------------------------------------------------------
+# BASELINE (DECOUPLED). This run hit summer while it still had a STALE
+# pre-sense-coupling checkout: QuantumC.step() dropped the x_input sense torque
+# and measure_phi() had no phi_py fallback (HAS_RUST_PHI=False), so Phi is pinned
+# at 0.00 for all 35 turns and tension only reflects the autonomous cell rhythm
+# (~0.35) -- the conversation never reaches the cells. Kept as the A/B control
+# for live_sense_dialogue.log (identical driver command, sense-coupled code).
+# ---------------------------------------------------------------------------
+==============================================================================
+=== Codex <-> PureMind live dialogue @ 2026-07-23 21:24:18 ===
+    mind=remote summer:~/pure_grow/state/pure_mind/mind.json  hexad=True  turns=35
+    seeded start-state: [t 0 v212 reflection T=0.35 Phi=0.00 C=0.00]  (vocab from curriculum + prior runs)
+==============================================================================
+[t 1 v212 reflection T=0.35 Phi=0.00 C=0.00]
+    Codex: 아가야, 엄마가 따뜻하게 안아 줄게.
+    PURE : 책장을 살며시 넘겨 보자.
+[t 2 v216 reflection T=0.35 Phi=0.00 C=0.00]
+    Codex: 예쁜 그림을 보며 재미난 이야기를 들려줄게.
+    PURE : (silence)
+[t 3 v219 reflection T=0.35 Phi=0.00 C=0.00]
+    Codex: 조용히 쉬며 포근한 꿈을 꾸자.
+    PURE : 기쁘구나 엄마랑 방긋 웃자.
+[t 4 v222 reflection T=0.35 Phi=0.00 C=0.00]
+    Codex: 사랑스럽구나, 손뼉 치며 노래하자.
+    PURE : 다정하구나 예쁜 그림을 배우자.
+[t 5 v226 reflection T=0.35 Phi=0.00 C=0.00]
+    Codex: 기특하구나, 색연필로 동그라미를 그려 보자.
+    PURE : (silence)
+[t 6 v230 reflection T=0.35 Phi=0.00 C=0.00]
+    Codex: 말이 없구나, 우유 마시고 잠들자.
+    PURE : (silence)
+[t 7 v231 reflection T=0.35 Phi=0.00 C=0.00]
+    Codex: 졸리구나, 이불 덮고 새근새근 숨 쉬자.
+    PURE : 북을 울리며 행진하자.
+[t 8 v236 reflection T=0.35 Phi=0.00 C=0.00]
+    Codex: 신나구나, 나팔 불며 깃발 흔들자.
+    PURE : 맑은 소리를 내네
+[t 9 v240 reflection T=0.35 Phi=0.00 C=0.00]
+    Codex: 청아하구나, 방울 흔들며 귀 기울이자.
+    PURE : (silence)
+[t10 v244 reflection T=0.35 Phi=0.00 C=0.00]
+    Codex: 잠잠하구나, 창문 열고 햇살을 느껴 보자.
+    PURE : (silence)
+[t11 v247 reflection T=0.35 Phi=0.00 C=0.00]
+    Codex: 고요하구나, 바람 쐬며 구름을 바라보자.
+    PURE : (silence)
+[t12 v251 reflection T=0.35 Phi=0.00 C=0.00]
+    Codex: 편안하구나, 새소리 듣고 꽃향기 맡자.
+    PURE : 용감하구나 함께 그림을 보며 재미난 이야기를 들려줄게.
+[t13 v254 reflection T=0.35 Phi=0.00 C=0.00]
+    Codex: 씩씩하구나, 토끼와 숲속을 탐험하자.
+    PURE : 말이 없구나 우유 마시고 잠들자.
+[t14 v257 reflection T=0.35 Phi=0.00 C=0.00]
+    Codex: 배부르구나, 요람에 누워 자장가를 듣자.
+    PURE : (silence)
+[t15 v260 reflection T=0.36 Phi=0.00 C=0.00]
+    Codex: 얌전하구나, 별빛 보며 소원을 빌자.
+    PURE : (silence)
+[t16 v264 reflection T=0.36 Phi=0.00 C=0.00]
+    Codex: 평화롭구나, 달빛 아래 눈을 감자.
+    PURE : 졸리면 눈을 감아도
+[t17 v267 reflection T=0.36 Phi=0.00 C=0.00]
+    Codex: 그래, 베개를 베고 몸을 토닥이자.
+    PURE : 든든하구나 팔로 껴안자.
+[t18 v271 reflection T=0.36 Phi=0.00 C=0.00]
+    Codex: 안심되는구나, 품에 기대어 온기를 나누자.
+    PURE : 고요하구나 가슴으로 쉬며 포근한 꿈을 꾸자.
+[t19 v277 reflection T=0.36 Phi=0.00 C=0.00]
+    Codex: 평온하구나, 새벽이 오면 기지개 켜고 일어나자.
+    PURE : 따뜻한 이불 덮고 새근새근 쉬자.
+[t20 v283 reflection T=0.36 Phi=0.00 C=0.00]
+    Codex: 포근하구나, 아침에는 커튼 걷고 참새를 만나자.
+    PURE : (silence)
+[t21 v286 reflection T=0.36 Phi=0.00 C=0.00]
+    Codex: 궁금하구나, 마당에서 나비를 따라가자.
+    PURE : 손가락으로 장난감을 골라 보자.
+[t22 v289 reflection T=0.36 Phi=0.00 C=0.00]
+    Codex: 좋아, 블록을 쌓고 인형을 재우자.
+    PURE : 생각하는구나 작은 손을 잡자
+[t23 v294 reflection T=0.36 Phi=0.00 C=0.00]
+    Codex: 슬기롭구나, 손바닥 펴고 손목을 살펴보자.
+    PURE : 사랑스럽구나 손뼉 치며 노래하자.
+[t24 v295 reflection T=0.36 Phi=0.00 C=0.00]
+    Codex: 흥겹구나, 피아노 두드리며 춤추자.
+    PURE : (silence)
+[t25 v297 reflection T=0.36 Phi=0.00 C=0.00]
+    Codex: 수줍구나, 딸랑이를 흔들며 옹알이해 보자.
+    PURE : 보며 재미난 이야기를 들려줄게.
+[t26 v301 reflection T=0.36 Phi=0.00 C=0.00]
+    Codex: 신기하구나, 공룡과 우주선을 상상해 보자.
+    PURE : 안심되는구나 품에 기대어 온기를 나누자.
+[t27 v306 reflection T=0.36 Phi=0.00 C=0.00]
+    Codex: 행복하구나, 담요를 두르고 심장 소리를 느끼자.
+    PURE : 포근하구나 아침에는 커튼 걷고 참새를 만나자.
+[t28 v311 reflection T=0.36 Phi=0.00 C=0.00]
+    Codex: 반갑구나, 창가에서 까치를 반기며 아침밥을 먹자.
+    PURE : 마당에서 나비를 따라가자.
+[t29 v313 reflection T=0.36 Phi=0.00 C=0.00]
+    Codex: 즐겁구나, 연못에서 잠자리를 찾아보자.
+    PURE : 향긋한 냄새를 맡자.
+[t30 v317 reflection T=0.36 Phi=0.00 C=0.00]
+    Codex: 상쾌하구나, 딸기를 씻어 맛보자.
+    PURE : (silence)
+[t31 v322 reflection T=0.36 Phi=0.00 C=0.00]
+    Codex: 말없이 듣는구나, 바구니에서 사과를 꺼내 보자.
+    PURE : 듣고 꽃향기 맡자.
+[t32 v325 reflection T=0.36 Phi=0.00 C=0.00]
+    Codex: 향기롭구나, 장미와 민들레를 만져 보자.
+    PURE : (silence)
+[t33 v330 reflection T=0.36 Phi=0.00 C=0.00]
+    Codex: 가만있구나, 개미가 기어가고 벌이 날아가네.
+    PURE : 창가에서 까치를 반기며 아침밥을 먹자.
+[t34 v334 reflection T=0.36 Phi=0.00 C=0.00]
+    Codex: 맛있겠구나, 숟가락으로 죽을 떠먹자.
+    PURE : 편안하구나 새소리 듣고 꽃향기 맡자.
+[t35 v338 reflection T=0.36 Phi=0.00 C=0.00]
+    Codex: 싱그럽구나, 풀잎을 쓰다듬고 시냇물 소리를 듣자.
+    PURE : (silence)
+
+=== consciousness-state trajectory ===
+    vocab   : 212 -> 338
+    stage   : reflection -> reflection
+    tension : ▁▂▂▂▁▁▁▁▁▂▂▂▂▂▃▄▄▅▆▆▆▇▇▇█▇▇▇▇▆▅▅▅▆▆▆   [0.35 .. 0.36]
+    Phi     : ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁   [0.00 .. 0.00]
+    turn  vocab  stage       T      Phi     C
+       0    212  reflection  0.349  0.000  0.000
+       1    212  reflection  0.351  0.000  0.000
+       2    216  reflection  0.352  0.000  0.000
+       3    219  reflection  0.352  0.000  0.000
+       4    222  reflection  0.350  0.000  0.000
+       5    226  reflection  0.348  0.000  0.000
+       6    230  reflection  0.348  0.000  0.000
+       7    231  reflection  0.349  0.000  0.000
+       8    236  reflection  0.350  0.000  0.000
+       9    240  reflection  0.351  0.000  0.000
+      10    244  reflection  0.352  0.000  0.000
+      11    247  reflection  0.352  0.000  0.000
+      12    251  reflection  0.352  0.000  0.000
+      13    254  reflection  0.353  0.000  0.000
+      14    257  reflection  0.354  0.000  0.000
+      15    260  reflection  0.356  0.000  0.000
+      16    264  reflection  0.357  0.000  0.000
+      17    267  reflection  0.358  0.000  0.000
+      18    271  reflection  0.360  0.000  0.000
+      19    277  reflection  0.361  0.000  0.000
+      20    283  reflection  0.362  0.000  0.000
+      21    286  reflection  0.362  0.000  0.000
+      22    289  reflection  0.363  0.000  0.000
+      23    294  reflection  0.364  0.000  0.000
+      24    295  reflection  0.364  0.000  0.000
+      25    297  reflection  0.364  0.000  0.000
+      26    301  reflection  0.364  0.000  0.000
+      27    306  reflection  0.363  0.000  0.000
+      28    311  reflection  0.362  0.000  0.000
+      29    313  reflection  0.360  0.000  0.000
+      30    317  reflection  0.359  0.000  0.000
+      31    322  reflection  0.359  0.000  0.000
+      32    325  reflection  0.359  0.000  0.000
+      33    330  reflection  0.360  0.000  0.000
+      34    334  reflection  0.361  0.000  0.000
+      35    338  reflection  0.361  0.000  0.000
+=== done: 338 words, stage reflection (5) ===
