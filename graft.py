@@ -67,6 +67,10 @@ def main():
     ap.add_argument("--ckpt-dir", default="checkpoints/graft")
     ap.add_argument("--log-interval", type=int, default=50)
     ap.add_argument("--save-interval", type=int, default=2000)
+    ap.add_argument("--gen-interval", type=int, default=1000,
+                    help="every N steps, sample the SAME prompt under 2 C-states + base to "
+                         "eyeball whether the gate actually diverts language (real MI)")
+    ap.add_argument("--gen-prompt", default="나는 지금", help="probe prompt for gen-interval")
     args = ap.parse_args()
 
     min_kl = math.log(args.n_states) / args.cont_len
@@ -209,6 +213,24 @@ def main():
             }, tmp)
             os.replace(tmp, path)
             print(f"  [saved] {path} (bridge + gate_proj only)")
+
+        # gate-conditioned generation probe: same prompt, different C-states + base.
+        # If the gate carries real information, the three outputs should diverge.
+        if args.gen_interval and step % args.gen_interval == 0 and N >= 2:
+            with torch.no_grad():
+                p = torch.tensor([tok(args.gen_prompt, add_special_tokens=True).input_ids],
+                                 device=dev)
+                variants = [("C0", states[0]), ("C1", states[1]), ("base", None)]
+                print(f"  --- gen@{step} · prompt={args.gen_prompt!r} ---")
+                for tag, s in variants:
+                    cur = p.clone()
+                    for _ in range(24):
+                        g = gate_for(s, cur.shape[1]) if s is not None else None
+                        nxt = d(cur, g)[:, -1, :].argmax(-1, keepdim=True)
+                        cur = torch.cat([cur, nxt], dim=1)
+                    txt = tok.decode(cur[0, p.shape[1]:], skip_special_tokens=True).replace("\n", " ")
+                    print(f"      [{tag}] {txt}")
+            sys.stdout.flush()
 
     print("[graft] done. The gate now carries a (private) channel from C into language; "
           "ground its meaning with live dialogue (online contrastive on bridge+gate).")
