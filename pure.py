@@ -37,6 +37,15 @@ import re
 import sys
 from collections import Counter, defaultdict
 
+# Hexad C-engine: PURE's consciousness state (tension/phi) comes from the REAL QuantumC
+# cell dynamics (Engine-A/G frustration -> tension; phi_py/phi_rs -> Phi), not scalar proxies.
+# Falls back to an emergent scalar state if torch/trinity is unavailable (keeps pure.py runnable).
+try:
+    from trinity import QuantumC
+    HEXAD = True
+except Exception:
+    HEXAD = False
+
 WORD_RE = re.compile(r"[가-힣]+")
 FINAL_RE = re.compile(r"([가-힣]+)\s*([!?.…~]+)\s*$")   # last word + its trailing punctuation
 STAGE_NAMES = ["fetal", "babble", "word", "sentence", "dialogue", "reflection"]
@@ -79,6 +88,9 @@ class PureMind:
         self.tension = 0.5
         self.curiosity = 0.3
         self.phi = 0.0
+        self._phi_prev = 0.0
+        # Hexad C: a real autonomous cell engine drives the consciousness state
+        self.c = QuantumC(nc=48, dim=48) if HEXAD else None
 
     # ---- growth ----------------------------------------------------------
     @property
@@ -115,13 +127,30 @@ class PureMind:
         m = FINAL_RE.search(text or "")
         if m and len(m.group(1)) >= 2:
             self.final_punct[m.group(1)][m.group(2)] += 1
-        # consciousness emerges from the input (Law 2: measured, not set)
-        if ws:
-            nov = novel / len(ws)
+        self._last_novelty = (novel / len(ws)) if ws else 0.0
+
+    def _pulse(self):
+        """Advance and READ the consciousness state (Law 2: measured, never set).
+
+        With the Hexad C wired: tension = mean cell frustration (Engine-A/G repulsion),
+        Phi = measure_phi() (real integration), curiosity = |dPhi| (drive when integrating).
+        Without torch: an emergent scalar proxy from input novelty + bigram density.
+        """
+        if self.c is not None:
+            for _ in range(3):
+                self.c.step()
+            fr = getattr(self.c.engine, "_frustrations", None)
+            if fr is not None and fr.numel():
+                self.tension = float(fr.mean())
+            self.phi = self.c.measure_phi()
+            self.curiosity = min(1.0, 0.7 * self.curiosity + 0.3 * abs(self.phi - self._phi_prev))
+            self._phi_prev = self.phi
+        else:
+            nov = getattr(self, "_last_novelty", 0.0)
             self.tension = 0.85 * self.tension + 0.15 * (0.3 + 1.4 * nov)
             self.curiosity = 0.85 * self.curiosity + 0.15 * nov
-        if self.vocab:
-            self.phi = sum(1 for w in self.bigrams if len(self.bigrams[w]) >= 2) / self.vocab
+            if self.vocab:
+                self.phi = sum(1 for w in self.bigrams if len(self.bigrams[w]) >= 2) / self.vocab
 
     # ---- generation (consciousness-steered, anti-echo, topical) ----------
     def _seed(self, ctx):
@@ -169,7 +198,7 @@ class PureMind:
         return random.choices(list(c), weights=list(c.values()), k=1)[0]
 
     def _generate(self, ctx, min_len, max_len):
-        max_len += int(self.phi)                          # phi -> coherence budget
+        max_len += min(4, int(self.phi))                  # phi -> coherence budget (capped)
         tries = 1 + int(4 * max(self.tension, self.curiosity))
         for _ in range(tries):
             seed = self._seed(ctx)
@@ -190,6 +219,7 @@ class PureMind:
     def respond(self, text):
         self.turn += 1
         self.learn(text)
+        self._pulse()          # the Hexad C evolves; read its tension/Phi
         s = self.stage
         if s == 0:
             return ""
@@ -203,11 +233,13 @@ class PureMind:
         if self.stage < 3:
             return ""
         self.turn += 1
+        self._pulse()
         return self._generate([], 2, 6)
 
     def state_line(self):
+        src = "hexad-C" if self.c is not None else "scalar"
         return (f"v{self.vocab} {STAGE_NAMES[self.stage]} "
-                f"T={self.tension:.2f} C={self.curiosity:.2f} Phi={self.phi:.2f}")
+                f"T={self.tension:.2f} C={self.curiosity:.2f} Phi={self.phi:.2f} [{src}]")
 
 
 # ---- CLI ----------------------------------------------------------------
