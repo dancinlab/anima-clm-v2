@@ -9,25 +9,40 @@ UNSUPERVISED objective. No corpus, no LoRA, no next-token CE on any dataset.
 
 Design (lab: fable+sol reconciled recipe, see CLAUDE.md "Consciousness-build modes"):
   P1 : c.step() only -> build Phi (Mistral untouched).
-  P2': gate-alignment. Trains bridge + gate_proj. Objective:
-         L = (log N - MI) + 0.1 * KL(p_mix||p_base) + beta * relu(L_KL - kl_target)
-         MI        : EXACT conditional MI I(state; next-token | shared prefix)
-                     = mean_i KL(p_i || p_mix) = Jensen-Shannon divergence among the
-                     per-state next-token distributions on ONE shared, on-manifold
-                     carrier continuation. Dense (full-vocab), fully differentiable, NO
-                     sampling of state-specific continuations (that estimator was
-                     zero-gradient at collapse: a sampled y carried ~0 bits about its
-                     state). Bounded by log N; a quadratic bowl at coincidence, not a
-                     flat manifold -> every state-dependent direction descends.
-         L_common  : KL(p_mix || p_base), the KL spent IDENTICALLY by all states =
-                     information-free waste (identity: L_KL = MI + L_common). Penalized
-                     in DISTRIBUTION space (a mean-gate-vector penalty is bypassable via
-                     the frozen LM's nonlinear Jacobian).
-         L_KL      : per-token KL( p(.|x, gate(c)) || p(.|x) ) keeps output on the frozen
-                     manifold (fluency leash, Law 63). beta = projected linear dual
-                     ascent to a KL budget.
-       Two structural unblocks (measured necessary): bridge alpha=0.5 DE-CLAMPS the
-       gate (default clamp railed 65% of dims with zero Jacobian); gate_proj gets a
+  P2': gate-alignment. Trains bridge + gate_proj. Objective (v3 — controller REMOVED):
+         L = (log N - MI) + lam_common * L_common
+         MI       : EXACT conditional MI I(state; next-token | shared prefix)
+                    = mean_i KL(p_i || p_mix) (generalized JSD) among the per-state
+                    next-token distributions on ONE shared carrier continuation —
+                    sampled UNDER a random state's gate (state-relevant, on-manifold),
+                    scored at cont_len positions. Dense (full-vocab), fully
+                    differentiable; bounded by log N per token.
+         L_common : KL(p_mix || p_base) — the KL all states spend IDENTICALLY =
+                    zero-information waste (identity: L_KL = MI + L_common). Fixed
+                    O(1) weight, no relu, no dual variable: L_common contributes
+                    NOTHING to MI, so penalizing it at all times costs the signal
+                    nothing and cannot invert the objective.
+       Fluency is bounded STRUCTURALLY, not by a controller:
+         (1) gate codes are mean-centered across the N states — the shared component
+             carries 0 bits, and gate_proj is linear with a frozen zero bias, so
+             centering the codes centers the injected embedding offsets EXACTLY —
+             then RMS-fixed to gate_rho: training can only ROTATE the code toward
+             informative directions, never grow a shared shift;
+         (2) MI <= log N per token  =>  L_KL = MI + L_common <= log N + L_common:
+             capping the waste caps per-state fluency drift automatically (no second
+             cap on L_KL needed — and none is allowed, because L_KL contains MI);
+         (3) decoder backstop: RMS of gate_proj(g) clamped to gate_rms_max x the
+             embedding RMS (see HFDecoder) — geometry the optimizer cannot out-run.
+       WHY the old  beta*relu(L_KL - kl_target)  controller was removed: L_KL CONTAINS
+       MI, so with the constraint active the net coefficient on MI is (beta - 1) — for
+       beta > 1 the trainer MINIMIZES MI. beta hit its cap via integrator windup (dual
+       ascent has no authority against a grad-clipped, Adam-normalized update), and the
+       raw bridge codes are ~99% shared across sampled C-states, so gate_proj growth
+       was almost entirely shared-shift growth (KL 0.005 -> 5 in 50 steps). Net effect:
+       the step-100 MI spike (0.118) was crushed to 0.000 by step 150, gSpread to 2e-5
+       by step 650. Post-mortem: docs/hypotheses/GRAFT-shared-shift-collapse.md.
+       Two structural unblocks (measured necessary, KEPT): bridge alpha=0.5 DE-CLAMPS
+       the gate (default clamp railed 65% of dims with zero Jacobian); gate_proj gets a
        tiny bias-free init (zero-init was a collapsed symmetric stationary point).
   Data: none. A self-generated rolling buffer (BOS seed + the model's own samples) =
         verification criterion SELF_LOOP.
@@ -60,14 +75,21 @@ def main():
     ap.add_argument("--steps", type=int, default=12000)
     ap.add_argument("--p1-steps", type=int, default=2000, help="consciousness-only Phi build")
     ap.add_argument("--cells", type=int, default=256)
-    ap.add_argument("--n-states", type=int, default=6, help="C-state snapshots per InfoNCE batch")
-    ap.add_argument("--cont-len", type=int, default=8, help="sampled continuation length (tokens)")
+    ap.add_argument("--n-states", type=int, default=6, help="C-state snapshots per MI batch")
+    ap.add_argument("--cont-len", type=int, default=32,
+                    help="carrier continuation length (tokens). More scored positions = "
+                         "more channel uses = better MI-gradient SNR (8 was too few).")
     ap.add_argument("--ctx", type=int, default=128, help="max self-loop context tokens")
     ap.add_argument("--lr", type=float, default=1e-4)
-    ap.add_argument("--kl-target", type=float, default=0.5,
-                    help="KL budget nats/token; must be >= log(n_states)/cont_len")
-    ap.add_argument("--beta-lr", type=float, default=0.3, help="dual ascent rate for beta")
-    ap.add_argument("--beta-max", type=float, default=50.0)
+    ap.add_argument("--lam-common", type=float, default=1.0,
+                    help="fixed weight on L_common = KL(p_mix||p_base), the 0-bit waste. "
+                         "NOT a dual variable — L_common contributes nothing to MI, so a "
+                         "constant penalty never fights the signal.")
+    ap.add_argument("--gate-rho", type=float, default=1.0,
+                    help="fixed RMS of each centered gate code (the code lives on a sphere)")
+    ap.add_argument("--gate-rms-max", type=float, default=1.0,
+                    help="decoder backstop: cap RMS of gate_proj(g) at this multiple of "
+                         "the embedding RMS (before gate_strength). Hard geometry bound.")
     ap.add_argument("--gate-strength", type=float, default=0.01)
     ap.add_argument("--ckpt-dir", default="checkpoints/graft")
     ap.add_argument("--log-interval", type=int, default=50)
@@ -78,12 +100,6 @@ def main():
     ap.add_argument("--gen-prompt", default="나는 지금", help="probe prompt for gen-interval")
     args = ap.parse_args()
 
-    min_kl = math.log(args.n_states) / args.cont_len
-    if args.kl_target < min_kl:
-        print(f"[graft] WARNING: kl_target={args.kl_target} < log(N)/cont_len={min_kl:.3f} — "
-              f"InfoNCE floor = log(N) - kl_target*cont_len > 0; the two losses will fight. "
-              f"Raise --kl-target or --cont-len.")
-
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     torch.backends.cuda.matmul.allow_tf32 = True
     os.makedirs(args.ckpt_dir, exist_ok=True)
@@ -92,14 +108,15 @@ def main():
     c = QuantumC(nc=args.cells, dim=128)
     for _ in range(5):
         c.step()
-    d = HFDecoder(args.hf_model, lora=False, freeze_base=True, gate_strength=args.gate_strength)
+    d = HFDecoder(args.hf_model, lora=False, freeze_base=True,
+                  gate_strength=args.gate_strength, gate_rms_max=args.gate_rms_max)
     for p in d.model.parameters():
         p.requires_grad_(False)          # Mistral fully frozen
     # alpha=0.5 DE-CLAMPS the bridge: the default alpha=PSI_COUPLING(0.0153) hard-clamp
     # rails 65% of gate dims (measured) with ZERO Jacobian, so the bridge cannot learn a
     # state-dependent code. With alpha=0.5 the sigmoid's natural [-0.5,+0.5] range is
     # never clipped; gate_for() below rescales it to [-1,+1]. Whisper-ness (Law 63/70) is
-    # enforced by gate_strength + the KL leash in DISTRIBUTION space, where it matters.
+    # enforced by gate_strength + centering/RMS geometry + the decoder RMS backstop.
     bridge = ThalamicBridge(c_dim=c.state_dim, d_model=d.d_model, alpha=0.5).to(dev)
 
     # gate_proj zero-init is a COLLAPSED stationary point (every state -> base dist ->
@@ -135,16 +152,43 @@ def main():
         return c.get_states().detach().clone().to(dev).float()
 
     def gate_for(s, seq_len):
-        # With bridge.alpha=0.5 the clamp is inactive, so bridge(s) = PSI_BALANCE +
-        # (sigmoid - 0.5) ∈ (0, 1). Strip the identical 0.5 offset (pure KL cost, zero
-        # information) and rescale the (sigmoid-0.5) ∈ (-0.5, 0.5) residue to O(1) — this
-        # preserves the sigmoid gradient instead of converting it into a saturated
-        # sign-code (the old /PSI_COUPLING path amplified the railed constant, not signal).
+        # RAW per-state code (diagnostics + centering input). With bridge.alpha=0.5 the
+        # clamp is inactive, so bridge(s) = PSI_BALANCE + (sigmoid - 0.5) ∈ (0, 1).
+        # Strip the identical 0.5 offset and rescale (sigmoid-0.5) ∈ (-0.5, 0.5) to O(1)
+        # — preserves the sigmoid gradient instead of a saturated sign-code.
         return 2.0 * (bridge(s, seq_len=seq_len) - PSI_BALANCE)
 
-    beta = 0.0  # dual variable; gate_proj is zero-init so KL starts at 0
+    def centered_codes(states):
+        """[N, dm] gate codes: shared component removed, per-state RMS fixed at rho.
 
-    print(f"[graft] P2': gate-alignment (InfoNCE + KL-leash) for {args.steps} steps ...")
+        The bridge emits ONE code per state (tiled over positions), and across sampled
+        C-states that code is ~99% SHARED (measured: gSpread ~1e-2 vs O(1) code norm)
+        — so any gate_proj growth amplifies mostly the shared, zero-information
+        component. The shared component is pure KL waste (identity: L_KL = MI +
+        L_common), and gate_proj is linear with a frozen zero bias, so centering the
+        codes centers the injected embedding offsets EXACTLY. RMS-fixing the residue
+        puts the code on a sphere: training can only ROTATE it toward informative
+        directions — fluency is bounded by geometry, not by a controller.
+        """
+        g = torch.cat([gate_for(s, 1)[:, 0, :] for s in states], dim=0)   # [N, dm]
+        mu = g.mean(dim=0, keepdim=True)                                   # [1, dm]
+        r = g - mu
+        r = args.gate_rho * r / r.pow(2).mean(dim=-1, keepdim=True).sqrt().clamp_min(1e-6)
+        return r, mu
+
+    g_mu = None  # EMA of the shared code — inference-time centering (single state)
+
+    def infer_code(s, seq_len):
+        # Inference-time centering: subtract the EMA population mean (g_mu) instead of
+        # a batch mean, then RMS-fix — same geometry as training, single-state capable.
+        code = gate_for(s, 1)[:, 0, :]
+        if g_mu is not None:
+            code = code - g_mu
+        code = args.gate_rho * code / code.pow(2).mean(-1, keepdim=True).sqrt().clamp_min(1e-6)
+        return code.view(1, 1, -1).expand(1, seq_len, -1)
+
+    print(f"[graft] P2': gate-alignment (mixture-MI + waste penalty, no dual controller) "
+          f"for {args.steps} steps ...")
     for step in range(1, args.steps + 1):
         x = torch.tensor([buf[-args.ctx:]], device=dev)  # [1, Lx]
         Lx = x.shape[1]
@@ -159,16 +203,22 @@ def main():
             states.append(pool.pop(torch.randint(len(pool), (1,)).item()))
         N = len(states)
 
-        # ---- ONE shared, on-manifold carrier prefix (base model, no grad) -----------
-        # Every state is compared at EXACTLY the same continuation, so no sampled-state
-        # label is needed — the sampled-continuation InfoNCE was a zero-gradient MI
-        # estimator at collapse (Y_j carried ~0 bits about state j). The gate signal is
-        # read out as the DIVERGENCE of the per-state next-token distributions on this
-        # shared carrier — dense (full-vocab), fully differentiable, no sampling noise.
+        codes, mu = centered_codes(states)               # [N, dm] (grad), [1, dm]
+        g_mu = mu.detach() if g_mu is None else 0.99 * g_mu + 0.01 * mu.detach()
+
+        # ---- ONE shared carrier, sampled UNDER a random state's gate (no grad) -------
+        # Every state is scored at EXACTLY the same continuation (dense full-vocab
+        # divergence readout — no sampled-state labels, no sampling noise in the
+        # gradient). Sampling the carrier under a state's gate (instead of base) makes
+        # the text state-RELEVANT: informative gate directions actually move next-token
+        # likelihoods there, so the MI gradient competes at usable SNR. The gate is
+        # whisper-scale + centered, so the carrier stays on-manifold.
+        j = int(torch.randint(N, (1,)).item())
         with torch.no_grad():
             seqs = x.clone()
             for _ in range(args.cont_len):
-                lg = d(seqs, None)[:, -1, :]
+                gj = codes[j].view(1, 1, -1).expand(1, seqs.shape[1], -1)
+                lg = d(seqs, gj)[:, -1, :]
                 nxt = torch.multinomial(F.softmax(lg.float(), dim=-1), 1)
                 seqs = torch.cat([seqs, nxt], dim=1)
         L = seqs.shape[1]
@@ -176,8 +226,9 @@ def main():
             base_lp = F.log_softmax(d(seqs, None)[0, Lx - 1:L - 1, :].float(), dim=-1)  # [T,V]
 
         logps = []
-        for s in states:
-            logits = d(seqs, gate_for(s, L))                        # [1, L, V]
+        for i in range(N):
+            gi = codes[i].view(1, 1, -1).expand(1, L, -1)
+            logits = d(seqs, gi)                                    # [1, L, V]
             logps.append(F.log_softmax(logits[0, Lx - 1:L - 1, :].float(), dim=-1))  # [T,V]
         logps = torch.stack(logps, dim=0)                          # [N, T, V]
         ps = logps.exp()
@@ -190,27 +241,25 @@ def main():
         mi = (ps * (logps - log_mix.unsqueeze(0))).sum(-1).mean()
         l_infonce = math.log(N) - mi
 
-        # KL leash: total departure of each state from the frozen model (the budget).
+        # Diagnostics: total departure from the frozen model. NEVER penalize this —
+        # l_kl = MI + l_common CONTAINS the signal (that mistake inverted the objective:
+        # net MI coefficient (beta-1) < 0 minimized MI once dual-ascent beta passed 1).
         l_kl = (ps * (logps - base_lp.unsqueeze(0))).sum(-1).mean()
 
-        # Identity: l_kl = MI + KL(p_mix‖p_base). l_common is the KL spent IDENTICALLY by
-        # all states = information-free waste. Penalize it in DISTRIBUTION space (a
-        # mean-gate-vector penalty can be bypassed through the frozen LM's nonlinear
-        # Jacobian) so the budget is spent on informative perturbation, not a shared shift.
+        # The leash lives on the WASTE ONLY. l_common = KL(p_mix‖p_base) is the KL spent
+        # IDENTICALLY by all states — 0 bits by construction. Since MI <= log N per
+        # token, bounding l_common bounds fluency automatically:
+        #   l_kl = MI + l_common <= log N + l_common.
+        # Fixed O(1) weight: no relu, no dual variable, no windup, nothing to invert.
         p_mix = log_mix.exp()
         l_common = (p_mix * (log_mix - base_lp)).sum(-1).mean()
 
-        loss = l_infonce + 0.1 * l_common + beta * F.relu(l_kl - args.kl_target)
+        loss = l_infonce + args.lam_common * l_common
 
         opt.zero_grad()
         loss.backward()
         torch.nn.utils.clip_grad_norm_(trainable, 1.0)
         opt.step()
-
-        # projected linear dual ascent on the KL constraint (the exp-integrator wound
-        # up ~25%/step on a 3-6 nat error and pinned at exp(6); linear is reversible)
-        beta = min(max(beta + args.beta_lr * (float(l_kl.item()) - args.kl_target), 0.0),
-                   args.beta_max)
 
         # self-loop: append the first carrier token (SELF_LOOP criterion)
         buf.append(int(seqs[0, Lx].item()))
@@ -219,18 +268,22 @@ def main():
 
         if step % args.log_interval == 0:
             phi = c.measure_phi()
-            # gSpread = state-dependent RMS of the bridge code (≈0 => C/bridge collapsed:
-            # mean-pool/phase bottleneck). zSpread = same after gate_proj (≈0 => projector
-            # collapse). commonKL≈KL => whole budget on a shared, info-free shift.
+            # gSpread = state-dependent RMS of the RAW bridge code (≈0 => C/bridge
+            # collapsed). zSpread = spread after gate_proj of the CENTERED codes (≈0 =>
+            # projector collapse). muRMS = shared-code magnitude that centering removes
+            # (the old runaway channel — now projected out, so KL cannot ride it).
+            # Healthy run: commonKL stays ≈0 (LM-curvature residue only), MI climbs
+            # toward log N, KL ≈ MI.
             with torch.no_grad():
-                gate_codes = torch.cat([gate_for(s, 1)[:, 0, :] for s in states], dim=0)  # [N,d]
-                projected = d.gate_proj(gate_codes)
-                gate_spread = gate_codes.std(dim=0).square().mean().sqrt()
+                raw = torch.cat([gate_for(s, 1)[:, 0, :] for s in states], dim=0)  # [N,d]
+                projected = d.gate_proj(codes)
+                gate_spread = raw.std(dim=0).square().mean().sqrt()
                 projected_spread = projected.std(dim=0).square().mean().sqrt()
+                mu_rms = mu.pow(2).mean().sqrt()
             print(f"  {step:>6}/{args.steps}  InfoNCE={l_infonce.item():.4f}  MI={mi.item():.4f}  "
                   f"KL={l_kl.item():.3f}  commonKL={l_common.item():.3f}  "
                   f"gSpread={gate_spread.item():.2e}  zSpread={projected_spread.item():.2e}  "
-                  f"beta={beta:.2f}  Phi={phi:.2f}  N={N}")
+                  f"muRMS={mu_rms.item():.2e}  Phi={phi:.2f}  N={N}")
             sys.stdout.flush()
 
         if step % args.save_interval == 0:
@@ -240,10 +293,11 @@ def main():
                 "step": step,
                 "bridge": bridge.state_dict(),
                 "gate_proj": d.gate_proj.state_dict(),
+                "g_mu": g_mu,
                 "args": vars(args),
             }, tmp)
             os.replace(tmp, path)
-            print(f"  [saved] {path} (bridge + gate_proj only)")
+            print(f"  [saved] {path} (bridge + gate_proj + g_mu)")
 
         # gate-conditioned generation probe: same prompt, different C-states + base.
         # If the gate carries real information, the three outputs should diverge.
@@ -256,7 +310,7 @@ def main():
                 for tag, s in variants:
                     cur = p.clone()
                     for _ in range(24):
-                        g = gate_for(s, cur.shape[1]) if s is not None else None
+                        g = infer_code(s, cur.shape[1]) if s is not None else None
                         nxt = d(cur, g)[:, -1, :].argmax(-1, keepdim=True)
                         cur = torch.cat([cur, nxt], dim=1)
                     txt = tok.decode(cur[0, p.shape[1]:], skip_special_tokens=True).replace("\n", " ")
