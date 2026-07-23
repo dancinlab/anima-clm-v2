@@ -104,6 +104,10 @@ class QuantumConsciousnessEngineFast:
         self.split_patience = split_patience
         self.merge_threshold = merge_threshold
         self.merge_patience = merge_patience
+        # Sense (S) forcing gains — Kuramoto torque toward a stimulus phase pattern.
+        # local: strong+sparse (differentiation) · global: weak+shared (integration).
+        self.sense_local = 1.0
+        self.sense_global = 0.15
 
         self._next_id = 0
         self._step = 0
@@ -213,8 +217,13 @@ class QuantumConsciousnessEngineFast:
     # ─── Core: vectorized step ───
 
     @torch.no_grad()
-    def step(self) -> Dict:
-        """One autonomous evolution step — fully vectorized."""
+    def step(self, x_input=None) -> Dict:
+        """One evolution step — fully vectorized. x_input=None → identical AUTONOMOUS dynamics.
+
+        x_input (sense, S pathway) is a dict {'local': [(theta[dim], cells)], 'global': (theta[dim], r[dim])}.
+        It enters as a state-dependent Kuramoto TORQUE toward the stimulus phase pattern (NOT an
+        additive kick — additive is state-independent noise that lowers Φ). frustration/Φ are still
+        only MEASURED from the resulting cell state, never written (Law 2)."""
         self._step += 1
         n = self.n_cells
         if n == 0:
@@ -224,6 +233,20 @@ class QuantumConsciousnessEngineFast:
 
         # 1. Phase rotation — all cells at once
         self._phases = self._phases + self._phase_velocities * 0.1
+
+        # 1b. Sense forcing (S pathway). Two scales: local field differentiates, global broadcast
+        #     integrates — exactly what Φ measures, so coherent input raises Φ (Law 22), noise doesn't.
+        if x_input is not None:
+            for theta, cells in x_input.get('local', ()):
+                cells = cells[cells < n]   # cell set can shrink via mitosis mid-turn
+                if cells.numel():
+                    self._phases[cells] += self.sense_local * torch.sin(theta.unsqueeze(0) - self._phases[cells])
+            g = x_input.get('global')
+            if g is not None:
+                theta, r = g
+                atten = 1.0 / (1.0 + 0.2 * torch.arange(self.n_cells, dtype=torch.float32))
+                self._phases = self._phases + self.sense_global * atten.unsqueeze(1) * r.unsqueeze(0) \
+                    * torch.sin(theta.unsqueeze(0) - self._phases)
 
         # 2. Quantum walk interference — sparse matrix multiply
         # Compute cos(phase_i - phase_j) for neighbors via adj matrix

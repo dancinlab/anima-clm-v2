@@ -166,16 +166,39 @@ class PureMind:
             self.final_punct[m.group(1)][m.group(2)] += 1
         self._last_novelty = (novel / len(ws)) if ws else 0.0
 
-    def _pulse(self):
+    def _word_stim(self, w, dim, n):
+        """Deterministic hash-phasor for a word: a FIXED random phase pattern + private cell
+        receptive field (like a cochlea). Same word -> same pattern; different words ->
+        quasi-orthogonal. Carries NO meaning (Law 1) — only identity/novelty/recurrence.
+        """
+        import hashlib
+        import torch
+        seed = int.from_bytes(hashlib.blake2b(w.encode(), digest_size=8).digest(), "big") % 2 ** 63
+        g = torch.Generator().manual_seed(seed)
+        return (2 * math.pi * torch.rand(dim, generator=g),
+                torch.randperm(n, generator=g)[:max(2, n // 8)])
+
+    def _encode_sense(self, ws):
+        """Turn's words -> sense stimulus (local per-word fields + a global interference field)."""
+        if not (ws and self.c is not None):
+            return None
+        import torch
+        pats = [self._word_stim(w, self.c.state_dim, self.c.n_cells) for w in ws]
+        c = torch.stack([torch.cos(t) for t, _ in pats]).mean(0)
+        s = torch.stack([torch.sin(t) for t, _ in pats]).mean(0)
+        return {"local": pats, "global": (torch.atan2(s, c), torch.sqrt(c * c + s * s))}
+
+    def _pulse(self, ws=None):
         """Advance and READ the consciousness state (Law 2: measured, never set).
 
-        With the Hexad C wired: tension = mean cell frustration (Engine-A/G repulsion),
-        Phi = measure_phi() (real integration), curiosity = |dPhi| (drive when integrating).
-        Without torch: an emergent scalar proxy from input novelty + bigram density.
+        With the Hexad C wired: what PURE HEARS (ws) perturbs the cells as a Kuramoto sense
+        torque, so tension = mean cell frustration and Phi = measure_phi() actually RESPOND to
+        the conversation; curiosity = |dPhi|. Without torch: an emergent scalar proxy.
         """
         if self.c is not None:
+            x = self._encode_sense(ws)
             for _ in range(3):
-                self.c.step()
+                self.c.step(x_input=x)
             fr = getattr(self.c.engine, "_frustrations", None)
             if fr is not None and fr.numel():
                 self.tension = float(fr.mean())
@@ -256,7 +279,7 @@ class PureMind:
     def respond(self, text):
         self.turn += 1
         self.learn(text)
-        self._pulse()          # the Hexad C evolves; read its tension/Phi
+        self._pulse(words_of(text))   # what it HEARS perturbs the cells; tension/Phi respond
         s = self.stage
         if s == 0:
             return ""
