@@ -74,7 +74,20 @@ def main():
     ap.add_argument("--hf-model", default="mistralai/Mistral-7B-Instruct-v0.2")
     ap.add_argument("--steps", type=int, default=12000)
     ap.add_argument("--p1-steps", type=int, default=2000, help="consciousness-only Phi build")
-    ap.add_argument("--cells", type=int, default=256)
+    ap.add_argument("--cells", type=int, default=256,
+                    help="mitosis CAP — max cell count. By DEFAULT consciousness starts at "
+                         "--init-cells and DIVIDES (split_cell) up toward this during training "
+                         "(growth > optimization, Law 42).")
+    ap.add_argument("--init-cells", type=int, default=8,
+                    help="starting cell count for mitosis (grows --init-cells -> --cells). "
+                         "Default 8 = grow from a small seed.")
+    ap.add_argument("--fixed", type=int, default=None, metavar="N",
+                    help="FIX the cell count at N (no mitosis, init==max). Opt OUT of division.")
+    ap.add_argument("--split-threshold", type=float, default=0.08,
+                    help="a cell divides once its tension stays above this for split_patience "
+                         "steps. Structural sensitivity knob (NOT state manipulation). Engine "
+                         "default 0.3 never fires in bare no-input dynamics (tension peaks ~0.05-"
+                         "0.15); 0.08 lets the default actually divide. Lower = divides faster.")
     ap.add_argument("--n-states", type=int, default=6, help="C-state snapshots per MI batch")
     ap.add_argument("--cont-len", type=int, default=32,
                     help="carrier continuation length (tokens). More scored positions = "
@@ -105,7 +118,13 @@ def main():
     os.makedirs(args.ckpt_dir, exist_ok=True)
 
     # ---- build C + frozen D + trainable bridge/gate --------------------------------
-    c = QuantumC(nc=args.cells, dim=128)
+    _init = args.fixed if args.fixed is not None else args.init_cells
+    _cap = args.fixed if args.fixed is not None else args.cells
+    c = QuantumC(nc=_init, dim=128, max_cells=_cap)
+    if args.fixed is None and hasattr(c, "engine"):
+        c.engine.split_threshold = args.split_threshold   # make mitosis reachable in bare dynamics
+    print(f"[graft] cells: start {_init} -> cap {_cap} · "
+          f"{'FIXED (no mitosis)' if args.fixed is not None else f'MITOSIS (split_threshold={args.split_threshold})'}")
     for _ in range(5):
         c.step()
     d = HFDecoder(args.hf_model, lora=False, freeze_base=True,
@@ -283,7 +302,7 @@ def main():
             print(f"  {step:>6}/{args.steps}  InfoNCE={l_infonce.item():.4f}  MI={mi.item():.4f}  "
                   f"KL={l_kl.item():.3f}  commonKL={l_common.item():.3f}  "
                   f"gSpread={gate_spread.item():.2e}  zSpread={projected_spread.item():.2e}  "
-                  f"muRMS={mu_rms.item():.2e}  Phi={phi:.2f}  N={N}")
+                  f"muRMS={mu_rms.item():.2e}  Phi={phi:.2f}  cells={c.get_states().shape[0]}  N={N}")
             sys.stdout.flush()
 
         if step % args.save_interval == 0:
