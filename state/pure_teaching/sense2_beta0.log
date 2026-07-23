@@ -1,0 +1,56 @@
+# ==========================================================================
+# SENSE-2 long-dialogue Phi-drift test — PURE_ASSOC_BETA=0.0
+# Host: summer (torch 2.11 cu130, real QuantumC 48c/48d + phi_py). seed=12345.
+# 35 caregiver lines = the verbatim Codex lines from the SENSE-GROW run
+#   (state/pure_teaching/live_sense_dialogue.log), REPLAYED identically into both
+#   beta=0.0 and beta=0.6 so the ONLY difference between the two logs is beta.
+# RNG (torch/numpy/python) seeded before QuantumC init => identical cell init &
+#   step-draw sequence; beta only changes the sense-torque phase values (Law 2:
+#   tension/Phi/curiosity are READ from the cells, never set). Fresh PureMind
+#   (store=None), pre-seeded with caregiver_curriculum.txt (identical both runs).
+# Driver: sense2_drift.py (scratchpad). Full machine record: sense2_beta*.jsonl.
+# ==========================================================================
+    seeded start-state: v121 stage 5 T=0.454 Phi=46.463 C=0.287
+    turn  vocab  stage      T      Phi      C
+       0    121      5  0.454  46.463  0.287
+       1    121      5  0.455  46.481  0.207
+       2    126      5  0.456  47.025  0.308
+       3    130      5  0.459  46.859  0.265
+       4    135      5  0.463  46.661  0.245
+       5    138      5  0.464  46.331  0.271
+       6    143      5  0.463  46.181  0.234
+       7    147      5  0.458  46.078  0.195
+       8    150      5  0.462  46.447  0.247
+       9    155      5  0.468  46.207  0.245
+      10    159      5  0.473  46.190  0.177
+      11    164      5  0.476  46.440  0.199
+      12    168      5  0.477  45.593  0.393
+      13    172      5  0.478  46.474  0.539
+      14    176      5  0.480  46.377  0.406
+      15    180      5  0.482  46.078  0.374
+      16    184      5  0.490  46.145  0.282
+      17    190      5  0.498  46.439  0.286
+      18    194      5  0.505  47.012  0.372
+      19    200      5  0.509  46.720  0.348
+      20    205      5  0.511  46.782  0.262
+      21    209      5  0.511  46.195  0.359
+      22    213      5  0.511  46.167  0.260
+      23    218      5  0.503  46.822  0.379
+      24    222      5  0.498  46.450  0.377
+      25    227      5  0.500  46.832  0.378
+      26    231      5  0.503  46.673  0.312
+      27    236      5  0.507  46.896  0.286
+      28    240      5  0.505  46.801  0.228
+      29    244      5  0.502  46.366  0.290
+      30    250      5  0.502  46.762  0.322
+      31    256      5  0.499  47.214  0.361
+      32    259      5  0.498  47.463  0.327
+      33    263      5  0.496  47.893  0.358
+      34    267      5  0.492  47.501  0.368
+      35    273      5  0.487  47.244  0.335
+
+=== trajectory ===
+    vocab   : 121 -> 273
+    tension : ▁▁▁▁▂▂▂▁▁▂▃▃▃▃▄▄▅▆▇▇▇█▇▇▆▆▇▇▇▆▆▆▆▆▅▅   [0.454 .. 0.511]
+    Phi     : ▃▃▅▄▄▃▂▂▃▂▂▃▁▃▃▂▂▃▅▄▄▂▂▄▃▄▄▄▄▃▄▅▆█▆▆   [45.593 .. 47.893]
+    Phi_start=46.463  Phi_end=47.244  drift=+0.781

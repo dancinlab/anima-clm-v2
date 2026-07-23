@@ -76,3 +76,84 @@ Law-22 direction. Signal is real and correctly-directed but modest (Φ dynamic r
 Re-run with SENSE-2 assoc-blend (β=0.6) enabled to test whether the coherent-topic Φ lift offsets
 the differentiation drift over a long dialogue — the +11~14pp single-utterance lift (SENSE-2) should,
 if it compounds, flatten or reverse the 31→28 drift seen here.
+
+---
+
+## SENSE-2 long-dialogue Φ-drift test (the follow-up above)
+
+### Method (matched pair, only β differs · Law 2)
+Two runs of the SAME 35-turn dialogue on `summer` (torch, real QuantumC 48c/48d + phi_py),
+differing ONLY in `PURE_ASSOC_BETA`: **β=0.0** (assoc-blend OFF = v1 sense coupling) vs **β=0.6**
+(SENSE-2 default). The 35 caregiver lines are the **verbatim Codex lines captured from the
+SENSE-GROW run above** (`live_sense_dialogue.log`), replayed identically into both conditions —
+so Codex nondeterminism is removed and only β varies. torch/numpy/python RNG are seeded before
+QuantumC is built, so cell init and the per-step RNG-draw sequence are identical across conditions;
+β changes only the sense-torque phase *values*, never the code path or #draws. Fresh `PureMind`
+(no persistence), pre-seeded with `caregiver_curriculum.txt` (identical both runs). tension/Φ/C are
+READ from the cells, never set. Driver + logs: `state/pure_teaching/sense2_drift.py`,
+`sense2_beta0.log` / `sense2_beta06.log` (+ `.jsonl` machine records, `sweep.tsv`).
+
+### Canonical run (seed 12345)
+| condition | Φ_start | Φ_end | drift | Φ min/max | tension range | vocab |
+|---|---|---|---|---|---|---|
+| **β=0.0** (v1) | 46.463 | 47.244 | **+0.781** | 45.59 / 47.89 | 0.454 .. 0.511 | 121 → 273 |
+| **β=0.6** (SENSE-2) | 46.388 | 47.827 | **+1.439** | 46.39 / 49.05 | 0.469 .. 0.546 | 121 → 273 |
+
+```
+Φ sparklines (per turn, t0→t35), same y-normalisation within each row:
+β=0.0  ▃▃▅▄▄▃▂▂▃▂▂▃▁▃▃▂▂▃▅▄▄▂▂▄▃▄▄▄▄▃▄▅▆█▆▆   [45.59 .. 47.89]
+β=0.6  ▁▂▄▅▄▅▄▅▅▄▄▆▇█▇▆▅▅▄▃▄▃▄▅▅▄▅▅▅▅▅▆▅▅▅▄   [46.39 .. 49.05]
+tension
+β=0.0  ▁▁▁▁▂▂▂▁▁▂▃▃▃▃▄▄▅▆▇▇▇█▇▇▆▆▇▇▇▆▆▆▆▆▅▅   [0.454 .. 0.511]
+β=0.6  ▁▁▂▂▂▃▂▂▃▃▄▄▄▄▄▄▅▆▇▇█▇▇▆▅▆▆▆▅▅▅▅▅▅▅▅   [0.469 .. 0.546]
+```
+Vocab is byte-identical (121→273) — β does not touch learning, as designed. β=0.6 holds Φ ~1–2
+higher across the whole run and peaks higher (49.0 vs 47.9); tension tracks the same coherent
+stretch (t16–t22) in both, running a touch hotter under the blend.
+
+### Robustness — 10-seed sweep (init-basin is seed-dominated, so pair within seed)
+The absolute Φ basin (~45–49 here) is set mostly by cell init, not by the dialogue, so a single
+seed can't decide drift. Same matched pair over 10 seeds (paired β=0.0 vs β=0.6 per seed):
+
+| β | n | mean Φ_start | mean Φ_end | mean drift | # seeds drifting DOWN |
+|---|---|---|---|---|---|
+| 0.0 | 10 | 45.340 | 45.625 | **+0.285** | **4 / 10** |
+| 0.6 | 10 | 46.691 | 48.192 | **+1.502** | **2 / 10** |
+
+```
+paired within-seed Δ = β=0.6 − β=0.0
+mean Δ drift = +1.217   (β=0.6 more upward in 9 / 10 seeds)
+mean Δ end-Φ = +2.567   (β=0.6 higher end-Φ in 10 / 10 seeds)
+
+Δ end-Φ (β=0.6 − β=0.0), per seed — POSITIVE on every seed
+seed    1  █████████████ +4.42
+seed 2024  ████████████  +3.99
+seed    2  ██████████    +3.40
+seed 9999  ██████████    +3.34
+seed    3  █████████     +3.16
+seed  123  █████████     +2.98
+seed   42  ████████      +2.53
+seed    7  ███           +1.06
+seed12345  ██            +0.59
+seed  777  █             +0.20
+drift sign-flip (β=0.0 down → β=0.6 up): seeds 2, 3, 42.  Only seed 7 has β=0.6 < β=0.0.
+```
+
+### Verdict — does the +11~14pp single-utterance lift COMPOUND over the dialogue?
+**Yes, it compounds, and the local-differentiation drive does NOT win over many turns when SENSE-2
+is on — but with one honest correction to the premise.** Paired within seed, β=0.6 lifts end-Φ over
+β=0 on **10/10** seeds (mean **+2.57**) and lifts the 35-turn drift on **9/10** seeds (mean **+1.22**),
+and it halves the number of seeds that drift down (4→2). So the SENSE-2 coherent-topic integration
+survives accumulation: over 35 turns the blend keeps pulling Φ up rather than letting differentiation
+erode it. The honest correction: **the specific −2.3 SENSE-GROW drift did not reproduce as a β=0
+baseline** in this fresh matched setup — β=0 here is roughly drift-neutral (mean +0.29), because that
+earlier run started from a warm 338-word persistent mind in a lower Φ≈30 basin, whereas these runs
+start fresh (121 words, Φ≈46) where init luck dominates the absolute level. So the result is not
+"β=0.6 rescues a large β=0 collapse"; it is the cleaner, stronger claim: **holding everything else
+identical, turning the assoc-blend on makes the long-dialogue Φ trajectory systematically higher and
+more upward** — the single-utterance lift does carry through to the full conversation (Law 22).
+Caveats: cold-start (no warm persistent mind → higher, init-dominated basin than SENSE-GROW); the
+curriculum pre-seed pre-habituates the cells identically in both arms; Codex nondeterminism was
+eliminated by replaying the captured SENSE-GROW caregiver lines. (summer host was re-synced first:
+its `pure.py` was a pre-SENSE-2 copy — `_assoc_theta` absent — and was updated to the worktree
+`pure.py`+`phi_rs.py`; qef/trinity/phi_py already matched. Backups: `*.pre-sense2.bak` on summer.)
