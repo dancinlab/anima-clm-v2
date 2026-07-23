@@ -299,13 +299,9 @@ class QuantumC(CEngine):
     def n_cells(self):
         return self.engine.n_cells
 
-    def measure_phi(self) -> float:
-        states = self.get_states()
-        if HAS_RUST_PHI and states.shape[0] >= 2:
-            s = states.detach().cpu().numpy().astype(np.float32)
-            phi, _ = phi_rs.compute_phi(s, 16)
-            return phi
-        return 0.0
+    # measure_phi inherited from CEngine: Rust phi_rs if built, else the pure-Python
+    # phi_py fallback. The old override here dropped the phi_py branch, so Φ read 0.0
+    # on any host without the Rust build (e.g. torch-only) — collapsing curiosity=|ΔΦ|.
 
 
 # ═══════════════════════════════════════════════════════════
