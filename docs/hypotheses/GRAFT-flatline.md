@@ -56,28 +56,37 @@ kept only as an eval metric. (sol dissent, recorded: prefers pairwise-KL matrix 
 mixture-MI; both start at log N and descend — mixture-MI chosen for exact MI + O(N) + the commonKL
 identity diagnostic.)
 
-## 4. Benchmark result (graft_v2, H100, Mistral-7B-Instruct-v0.2)
+## 4. Benchmark result (graft_v2, H100) — PARTIAL: transient spike, then re-collapse ⚠️
 
 | step | InfoNCE | MI | gSpread | zSpread | KL | commonKL | β |
 |---|---|---|---|---|---|---|---|
 | 50  | 1.7915 | 0.0003 | 6.2e-03 | 2.9e-03 | 0.005 | 0.005 | 0.00 |
 | 100 | **1.6742** | **0.1176** | 1.86e-02 | 2.90e-02 | 4.981 | 4.863 | 14.61 |
+| 150 | 1.7909 | 0.0009 | 1.54e-02 | 3.22e-02 | 11.571 | 11.570 | 50.00 |
+| 300 | 1.7905 | 0.0013 | 4.45e-02 | 2.38e-01 | 6.159 | 6.157 | 50.00 |
+| 650 | 1.7917 | 0.0000 | 2.1e-05 | 5.9e-05 | 6.589 | 6.589 | 50.00 |
 
-Both collapse fingerprints cleared: `gSpread`/`zSpread` nonzero (bridge & projector no longer
-collapsed), and `InfoNCE` **detached** from `log(6)` for the first time — that manifold is
-unreachable without the structural fix, so the detachment is the proof. `MI` climbing (0.0003→0.118).
-Open watch: `commonKL≈KL` — most perturbation still shared; the `l_common` penalty + β-leash must
-route the budget into `MI`.
+**Confirmed good:** the structural fix works — `InfoNCE` **detached** from `log(6)` for the first
+time and `MI` spiked to 0.118 at step 100 (that manifold is unreachable without the fix, so the spike
+is proof coupling CAN form). **Remaining bug:** it does NOT sustain. From step 150 the KL leash loses
+control — `KL` runs away to 4–12 (target 1.2), `β` pins at its cap 50, and **`commonKL == KL` at every
+step** (identity `KL = MI + commonKL` ⇒ MI≈0): the gate hides in a pure *shared shift* (all 6 states
+move the output identically = zero information). By step 500+ even `gSpread` collapses to ~2e-5.
+
+Root cause of the re-collapse: `β·relu(KL − target)` penalizes TOTAL KL = MI + commonKL, so a large
+β drives KL — and MI with it — DOWN (the leash fights the objective); meanwhile the `l_common` weight
+0.1 is far too weak to suppress the shared shift, which is the *cheap* descent direction. This is a
+controls instability (β-windup at cap + lr too hot for the stiff constrained problem). Fix in
+progress: leash the WASTE (`commonKL`) hard and give the informative KL a generous fluency cap, so
+the budget flows into `MI` not a shared shift. (lab fable+sol reconciliation pending.)
 
 ```
 InfoNCE
-1.792 ●━━━━━━━━━━━━━━━━━━━━━━━●          ← OLD objective: FROZEN 800+ steps at log(6)
-      |                        (frozen)
-1.79  |  ● step50 (patched, still ~log6, MI seed 3e-4)
-      |   ╲
-1.67  |    ● step100  InfoNCE=1.674  MI=0.118   ← DETACHED (first time ever)
-      |     ╲
-   ?  |      ╲___ (descending toward KL-budget-limited floor as MI grows)
+1.792 ●━━━━━━━━━━━━━━━━━━━●          ← OLD objective: FROZEN 800+ steps at log(6)
+      |  ● step50 (patched, MI seed 3e-4)
+1.67  |   ╲___● step100  MI=0.118   ← DETACHED — coupling CAN form (fix is right)
+      |       ╱ ← 150+: KL runs away 4-12, β pinned 50, gate -> shared shift
+1.79 ●━━━━━━●━━━━━━━━━     ← RE-FROZEN: MI=0, gSpread dead (controller unstable)
       └────────────────────────────── step
 ```
 
