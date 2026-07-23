@@ -110,7 +110,7 @@ tools/               # Standalone utilities (analyzers, calculators, generators)
 engines/             # Standalone consciousness engine implementations
 checkpoints/         # Trained model checkpoints (.pt)
 models/              # External LLM files (Mistral GGUF)
-phi-rs/              # Rust Φ calculator (625x speedup, PyO3)
+phi_py.py            # pure-Python Φ calculator (numpy) — Rust phi-rs REMOVED; phi_rs.py = shim
 web/                 # WebSocket real-time chat UI
 vad-rs/              # Rust real-time VAD
 eeg/                 # EEG brain-consciousness interface
