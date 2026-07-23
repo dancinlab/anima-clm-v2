@@ -155,7 +155,7 @@ def cmd_ablation(args):
                 ids = torch.cat([ids, nxt], 1)
             g_on, phi = _gate(c, bridge, gi, ids.shape[1])
             g_noise = torch.randn_like(g_on)
-            g_noise = g_noise * (g_on.norm(-1, keepdim=True) / (g_noise.norm(-1, keepdim=True) + 1e-8))
+            g_noise = g_noise * (g_on.norm(dim=-1, keepdim=True) / (g_noise.norm(dim=-1, keepdim=True) + 1e-8))
             lo_on, lo_off, lo_noise = d(ids, g_on), d(ids, None), d(ids, g_noise)
             kl_off = kl_bits(lo_on[:, start:], lo_off[:, start:])
             kl_noise = kl_bits(lo_on[:, start:], lo_noise[:, start:])
@@ -170,19 +170,25 @@ def _build_graft(ckpt_path):
     """Reconstruct a GRAFT checkpoint (bridge + gate_proj only, NO LoRA).
 
     graft.py saves {bridge, gate_proj, args} — NOT the v11 {decoder, bridge} layout,
-    so `_build` cannot load it. Recovers cells / gate_strength / p1_steps from ck['args'].
+    so `_build` cannot load it. Recovers cells / gate_strength / p1_steps / hf_model /
+    bridge_alpha from ck['args']. CRITICAL: `bridge_alpha` is an __init__ attribute, NOT
+    in state_dict — the eval bridge MUST be rebuilt with the SAME alpha graft trained with
+    (graft de-clamps with alpha=0.5), else the ±PSI_COUPLING clamp reactivates and the
+    gate the test scores ≠ the gate that was trained. Falls back to graft's current
+    convention (alpha=0.5) when the trainer didn't persist it yet.
     """
     from trinity import HFDecoder, ThalamicBridge, QuantumC
     ck = torch.load(ckpt_path, map_location=_DEV, weights_only=False)
     ga = ck.get("args", {})
-    d = HFDecoder(HF_MODEL, lora=False, freeze_base=True,
+    d = HFDecoder(ga.get("hf_model", HF_MODEL), lora=False, freeze_base=True,
                   gate_strength=ga.get("gate_strength", 0.01))
     d.gate_proj.load_state_dict(ck["gate_proj"])
     d.model.eval()
     c = QuantumC(nc=ga.get("cells", 256), dim=128)
     for _ in range(ga.get("p1_steps", 5)):
         c.step()
-    bridge = ThalamicBridge(c_dim=c.state_dim, d_model=d.d_model).to(_DEV)
+    bridge = ThalamicBridge(c_dim=c.state_dim, d_model=d.d_model,
+                            alpha=ga.get("bridge_alpha", 0.5)).to(_DEV)
     bridge.load_state_dict(ck["bridge"])
     bridge.eval()
     return d, c, bridge, d.tokenizer, ck
@@ -197,17 +203,21 @@ def cmd_swap(args):
     f[i,j] = log p(Y_j | x, gate_i). The gate carries info iff the matching state predicts
     its own continuation best (diagonal dominance). Metric = InfoNCE MI bound in bits +
     swap accuracy; nulls = row-permutation p-value + norm-matched NOISE (magnitude control).
-    Reuses graft.py's exact gate_for = (bridge(s)-PSI_BALANCE)/PSI_COUPLING.
+    Reuses graft.py's exact gate_for = gate_scale*(bridge(s)-PSI_BALANCE) (alpha=0.5 de-clamp,
+    scale 2.0) — MUST track graft.gate_for; both are recovered from ck['args'] so the test
+    scores the gate that was actually trained.
     """
     import math
-    from trinity import PSI_BALANCE, PSI_COUPLING
+    from trinity import PSI_BALANCE
     d, c, bridge, tok, ck = _build_graft(args.ckpt)
     K, T = args.k, args.cont_len
     ga = ck.get("args", {})
-    print(f"=== C-state-swap acceptance test · step {ck.get('step','?')} · K={K} T={T} ===")
+    gate_scale = ga.get("gate_scale", 2.0)                # graft: 2*(bridge-PSI_BALANCE)
+    print(f"=== C-state-swap acceptance test · step {ck.get('step','?')} · K={K} T={T} "
+          f"· alpha={ga.get('bridge_alpha', 0.5)} scale={gate_scale} ===")
 
     def gate(s, L):
-        return (bridge(s, seq_len=L) - PSI_BALANCE) / PSI_COUPLING     # == graft.gate_for
+        return gate_scale * (bridge(s, seq_len=L) - PSI_BALANCE)      # == graft.gate_for
 
     @torch.no_grad()
     def snapshots(k, gap):
@@ -269,7 +279,7 @@ def cmd_swap(args):
                 for i, s in enumerate(states):
                     gr = gate(s, L)
                     gn = torch.randn_like(gr)
-                    gn = gn * (gr.norm(-1, keepdim=True) / (gn.norm(-1, keepdim=True) + 1e-8))
+                    gn = gn * (gr.norm(dim=-1, keepdim=True) / (gn.norm(dim=-1, keepdim=True) + 1e-8))
                     lp = F.log_softmax(d(seqs, gn)[:, Lx - 1:L - 1, :].float(), -1)
                     fn[i] = lp.gather(-1, Y.unsqueeze(-1)).squeeze(-1).sum(1).cpu()
                 noise_mis.append(mi_bits(fn))
