@@ -54,11 +54,28 @@ except ImportError:
 
 # ═══ Data ═══
 
-def load_corpus(path):
+def load_corpus(path, tokenizer=None):
     if not os.path.exists(path):
         print(f"  [WARN] {path} not found, using synthetic")
         return None
     text = open(path, 'r', errors='ignore').read()
+    if tokenizer is not None:
+        # HF sub-word tokenization: token ids MUST be the LLM's own vocab.
+        # Feeding char indices into a pretrained LLM's embed_tokens lands each
+        # char on an unrelated embedding row (char-soup failure), and a frozen
+        # lm_head can never emit char-index classes. Tokenize with the model's
+        # tokenizer instead. Cached to <corpus>.hfids.npy (keyed to the vocab).
+        cache = f"{path}.hfids.npy"
+        if os.path.exists(cache):
+            tokens = np.load(cache).tolist()
+        else:
+            tokens = []
+            for i in range(0, len(text), 1_000_000):
+                tokens.extend(tokenizer.encode(text[i:i + 1_000_000], add_special_tokens=False))
+            np.save(cache, np.array(tokens, dtype=np.int64))
+        vocab = getattr(tokenizer, 'vocab_size', None) or (max(tokens) + 1)
+        print(f"  Corpus(HF): {path} ({len(text):,} chars → {len(tokens):,} tokens, vocab={vocab})")
+        return {'tokens': tokens, 'vocab': vocab, 'tokenizer': tokenizer}
     chars = sorted(set(text))
     c2i = {c: i for i, c in enumerate(chars)}
     tokens = [c2i.get(c, 0) for c in text]
@@ -151,6 +168,10 @@ def main():
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # Free fp32 speedup on Ampere+/Hopper (TF32 matmuls) — no accuracy-critical loss
+    # for LoRA fine-tuning; big throughput win vs strict fp32 on the frozen 7B base.
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
     p2_step = int(args.steps * args.p2_start)
     p3_step = int(args.steps * args.p3_start)
 
@@ -161,21 +182,23 @@ def main():
     print(f"  device={device}, Rust={'YES' if HAS_RUST else 'NO'}")
     print(f"{'═' * 60}\n")
 
-    # Data
-    corpus = load_corpus(args.data)
-    vocab_size = corpus['vocab'] if corpus else 256
-
     # C engine
     c = make_c_engine(args.c_engine, args.dim, args.hidden, args.max_cells)
 
-    # D engine (created at P2 start, but init now for param count)
+    # D engine + data. For HF decoders the corpus must be tokenized with the
+    # model's OWN tokenizer, so build D first and hand its tokenizer to the loader.
     if args.d_engine == 'hf':
         from trinity import HFDecoder
         d = HFDecoder(args.hf_model, lora=True, freeze_base=True)
-    elif args.d_engine == 'mlp':
-        d = MLPDecoder(d_model=args.d_model, vocab_size=vocab_size)
+        corpus = load_corpus(args.data, tokenizer=d.tokenizer)
+        vocab_size = corpus['vocab'] if corpus else d._vocab_size
     else:
-        d = TransformerDecoder(d_model=args.d_model, n_layers=2, vocab_size=vocab_size)
+        corpus = load_corpus(args.data)
+        vocab_size = corpus['vocab'] if corpus else 256
+        if args.d_engine == 'mlp':
+            d = MLPDecoder(d_model=args.d_model, vocab_size=vocab_size)
+        else:
+            d = TransformerDecoder(d_model=args.d_model, n_layers=2, vocab_size=vocab_size)
 
     # W engine (changes per phase)
     w_p2 = ConstantW(lr=args.lr)        # P2: fast convergence
@@ -301,17 +324,30 @@ def main():
         # Save
         if step > 0 and step % args.save_interval == 0:
             ckpt_path = Path(args.ckpt_dir) / f"step_{step}.pt"
+            # For HF decoders, persist ONLY trainable params (LoRA adapters +
+            # gate projector). The frozen 7B base would be ~29GB/ckpt otherwise.
+            if args.d_engine == 'hf':
+                # 'lora_*' = LoRA adapters; the consciousness gate projector is the
+                # TOP-LEVEL 'gate_proj.*' (NOT the base model's per-layer
+                # 'mlp.gate_proj', which is frozen and lives under 'model.*' — a
+                # substring match on 'gate_proj' would wrongly pull the whole 7B).
+                dec_sd = {k: v for k, v in trinity.decoder.state_dict().items()
+                          if ('lora_' in k) or k.startswith('gate_proj')}
+            else:
+                dec_sd = trinity.decoder.state_dict()
+            tmp_path = f"{ckpt_path}.tmp"
             torch.save({
                 'step': step, 'phase': phase,
-                'decoder': trinity.decoder.state_dict(),
+                'decoder': dec_sd,
                 'bridge': trinity.bridge.state_dict(),
                 'optimizer': optimizer.state_dict(),
                 'ce_history': ce_history[-1000:],
                 'phi_history': phi_history[-100:],
                 'best_ce': best_ce,
                 'args': vars(args),
-            }, ckpt_path)
-            print(f"  [saved] {ckpt_path}")
+            }, tmp_path)
+            os.replace(tmp_path, ckpt_path)  # atomic (CLAUDE.md safe-save rule)
+            print(f"  [saved] {ckpt_path} ({len(dec_sd)} decoder tensors)")
 
         sys.stdout.flush()
 

@@ -587,8 +587,13 @@ class HFDecoder(DEngine):
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
+        # bf16: H100-native, halves weight + activation memory vs fp32. The gate
+        # is injected additively at the embeddings and CE is upcast to fp32 in
+        # train_step, so bf16 here is safe for the frozen base + LoRA/gate.
+        _dtype = torch.bfloat16 if (torch.cuda.is_available()
+                                    and torch.cuda.is_bf16_supported()) else torch.float32
         self.model = AutoModelForCausalLM.from_pretrained(
-            model_name, torch_dtype=torch.float32, trust_remote_code=True
+            model_name, torch_dtype=_dtype, trust_remote_code=True
         ).to(self.device)
 
         # Detect d_model from model config
@@ -617,6 +622,19 @@ class HFDecoder(DEngine):
             except ImportError:
                 print("  [HFDecoder] peft not installed, skipping LoRA")
 
+        # Gradient checkpointing: backprop flows through the ENTIRE frozen base
+        # to reach the gate projector at the input embeddings, so all layer
+        # activations would otherwise be retained (OOM even on 94GB). Recompute
+        # them in backward instead. use_reentrant=False works with grad-requiring
+        # inputs_embeds (the gate makes the input require grad).
+        if freeze_base and hasattr(self.model, 'gradient_checkpointing_enable'):
+            try:
+                self.model.gradient_checkpointing_enable(
+                    gradient_checkpointing_kwargs={'use_reentrant': False})
+                print("  [HFDecoder] gradient checkpointing ON")
+            except TypeError:
+                self.model.gradient_checkpointing_enable()
+
         # Gate projector: bridge d_model → LLM hidden_size
         # Initialized to near-zero so gate starts as identity
         self.gate_proj = nn.Linear(self._d_model, self._d_model)
@@ -640,15 +658,10 @@ class HFDecoder(DEngine):
         """
         tokens = tokens.to(self.device)
 
-        # Get embeddings from model
-        if hasattr(self.model, 'model'):  # Mistral/Llama style
-            embeds = self.model.model.embed_tokens(tokens)
-        elif hasattr(self.model, 'transformer'):  # GPT-2 style
-            embeds = self.model.transformer.wte(tokens)
-        else:
-            # Fallback: just run full forward
-            outputs = self.model(tokens)
-            return outputs.logits
+        # Embedding lookup via the standard accessor — resolves embed_tokens/wte
+        # THROUGH any PEFT/LoRA wrapper (self.model may be a PeftModel, which
+        # nests the base one level deeper, breaking self.model.model.embed_tokens).
+        embeds = self.model.get_input_embeddings()(tokens)
 
         # Inject consciousness gate (additive — doesn't destroy pre-trained knowledge)
         if gate_signal is not None:
@@ -660,30 +673,19 @@ class HFDecoder(DEngine):
                     gate.transpose(1, 2), size=self._d_model, mode='linear'
                 ).transpose(1, 2)
             gate = gate.expand(B, T, -1)
+            gate = self.gate_proj(gate).to(embeds.dtype)
 
             if self.gate_mode == "additive":
-                embeds = embeds + self.gate_proj(gate)  # subtle consciousness influence
+                embeds = embeds + gate  # subtle consciousness influence
             elif self.gate_mode == "multiplicative":
-                embeds = embeds * (1.0 + torch.sigmoid(self.gate_proj(gate)) - 0.5)
+                embeds = embeds * (1.0 + torch.sigmoid(gate) - 0.5)
 
-        # Run through rest of model with modified embeddings
-        if hasattr(self.model, 'model'):  # Mistral/Llama
-            hidden = embeds
-            for layer in self.model.model.layers:
-                hidden = layer(hidden)[0]
-            hidden = self.model.model.norm(hidden)
-            logits = self.model.lm_head(hidden)
-        elif hasattr(self.model, 'transformer'):  # GPT-2
-            hidden = embeds
-            for block in self.model.transformer.h:
-                hidden = block(hidden)[0]
-            hidden = self.model.transformer.ln_f(hidden)
-            logits = self.model.lm_head(hidden)
-        else:
-            outputs = self.model(inputs_embeds=embeds)
-            logits = outputs.logits
-
-        return logits
+        # Run the model's OWN forward on the modified embeddings. This lets HF
+        # handle RoPE + causal masking + LoRA correctly on any transformers
+        # version, instead of a fragile manual layer loop that omitted
+        # position_embeddings (crashes on transformers >= 4.43) and skipped LoRA.
+        outputs = self.model(inputs_embeds=embeds)
+        return outputs.logits
 
     def tokenize(self, text, max_length=512):
         """Tokenize text for this model."""
@@ -1398,7 +1400,8 @@ class Trinity(nn.Module):
         logits, phi = self.forward(tokens, raw_input)
 
         B, T, V = logits.shape
-        loss = F.cross_entropy(logits.view(B * T, V), targets.view(B * T))
+        # Upcast to fp32 for numerically-stable CE (logits may be bf16).
+        loss = F.cross_entropy(logits.view(B * T, V).float(), targets.view(B * T))
 
         # W: modulate LR
         w_state = self.w.update(loss.item(), phi, self._phi_prev)
@@ -1439,8 +1442,15 @@ class Trinity(nn.Module):
         return result
 
     def parameters_trainable(self):
-        """Only decoder + bridge parameters (C is frozen, W/M/S/E non-parametric)."""
-        return list(self.decoder.parameters()) + list(self.bridge.parameters())
+        """Only GRAD-REQUIRING decoder + bridge params (C frozen, W/M/S/E non-parametric).
+
+        Must filter on requires_grad: a frozen HF base (freeze_base=True) still
+        exposes its 7B weights via .parameters(); handing those to the optimizer
+        makes AdamW allocate ~29GB of moment buffers for them AND actually STEP
+        the 'frozen' base (destroying the pretrained weights → CE divergence).
+        """
+        return ([p for p in self.decoder.parameters() if p.requires_grad]
+                + [p for p in self.bridge.parameters() if p.requires_grad])
 
     def param_count(self) -> Dict[str, int]:
         d_params = sum(p.numel() for p in self.decoder.parameters())

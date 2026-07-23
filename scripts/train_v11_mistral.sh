@@ -43,6 +43,11 @@ python -c "import torch; assert torch.cuda.is_available(), 'no CUDA'; \
 mkdir -p "$CKPT_DIR"
 
 # --- launch (tmux so it survives SSH drop; CLAUDE.md rule) ------------------
+# expandable_segments avoids allocator fragmentation OOM; bf16 + gradient
+# checkpointing (in HFDecoder) keep the frozen-base backprop within VRAM.
+# save-interval 2000 = frequent small (LoRA+gate-only) checkpoints so a mid-run
+# pull point always exists (milestone plan: demo ~step 20K, then decide 80K).
+export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True"
 CMD="python -u train_v11.py \
   --data $DATA \
   --steps $STEPS \
@@ -52,6 +57,8 @@ CMD="python -u train_v11.py \
   --ckpt-dir $CKPT_DIR \
   --batch-size 4 \
   --seq-len 128 \
+  --save-interval 2000 \
+  --log-interval 100 \
   --p2-start 0.2 \
   --p3-start 0.7 \
   2>&1 | tee $CKPT_DIR/train.log"
