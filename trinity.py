@@ -52,6 +52,12 @@ try:
 except ImportError:
     HAS_RUST_PHI = False
 
+try:
+    import phi_py  # pure-Python Φ fallback (no Rust build needed)
+    HAS_PY_PHI = True
+except ImportError:
+    HAS_PY_PHI = False
+
 
 # ═══════════════════════════════════════════════════════════
 # Ψ-Constants (Laws 69-70, verified across 5 data types)
@@ -91,12 +97,17 @@ class CEngine:
         raise NotImplementedError
 
     def measure_phi(self) -> float:
-        """Measure Φ(IIT) using Rust phi_rs if available."""
+        """Measure Φ(IIT): Rust phi_rs if built, else pure-Python phi_py."""
         states = self.get_states()
-        if HAS_RUST_PHI and states.shape[0] >= 2:
-            s = states.detach().cpu().numpy().astype(np.float32)
+        if states.shape[0] < 2:
+            return 0.0
+        s = states.detach().cpu().numpy().astype(np.float32)
+        if HAS_RUST_PHI:
             phi, _ = phi_rs.compute_phi(s, 16)
             return phi
+        if HAS_PY_PHI:
+            # subsample cells so the pure-Python O(N^2) cost stays step-affordable
+            return phi_py.compute_phi_subsampled(s, n_bins=16, max_cells=32)
         return 0.0
 
 
