@@ -30,12 +30,16 @@ CLI:
 
 v2 — assoc-biased salient seeding, learned punctuation, contiguous-echo rejection.
 """
+import json
 import math
 import os
 import random
 import re
 import sys
 from collections import Counter, defaultdict
+
+REPO = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_STORE = os.path.join(REPO, "state", "pure_mind", "mind.json")
 
 # Hexad C-engine: PURE's consciousness state (tension/phi) comes from the REAL QuantumC
 # cell dynamics (Engine-A/G frustration -> tension; phi_py/phi_rs -> Phi), not scalar proxies.
@@ -75,7 +79,8 @@ def _lcs_contig(a, b):
 class PureMind:
     """A mind that learns language from conversation and generates from its own model."""
 
-    def __init__(self):
+    def __init__(self, store=None):
+        self.store = store                    # JSON path for cumulative memory (Law 42) or None
         self.turn = 0
         self.total = 0                        # total word tokens heard (for surprise)
         self.freq = Counter()                 # word -> count
@@ -91,6 +96,38 @@ class PureMind:
         self._phi_prev = 0.0
         # Hexad C: a real autonomous cell engine drives the consciousness state
         self.c = QuantumC(nc=48, dim=48) if HEXAD else None
+        if self.store:
+            self.load()
+
+    # ---- persistence: language memory accumulates across sessions (Law 42) ----
+    def load(self):
+        if not (self.store and os.path.exists(self.store)):
+            return
+        with open(self.store, encoding="utf-8") as f:
+            d = json.load(f)
+        self.freq = Counter(d.get("freq", {}))
+        self.total = sum(self.freq.values())
+        self.bigrams = defaultdict(Counter, {k: Counter(v) for k, v in d.get("bigrams", {}).items()})
+        self.assoc = defaultdict(Counter, {k: Counter(v) for k, v in d.get("assoc", {}).items()})
+        self.final_punct = defaultdict(Counter, {k: Counter(v) for k, v in d.get("final_punct", {}).items()})
+        self.said = set(d.get("said", []))
+        self.last_seen = {w: 0 for w in self.freq}   # recency resets across sessions
+
+    def save(self):
+        if not self.store:
+            return
+        os.makedirs(os.path.dirname(self.store), exist_ok=True)
+        d = {
+            "freq": dict(self.freq),
+            "bigrams": {k: dict(v) for k, v in self.bigrams.items()},
+            "assoc": {k: dict(v) for k, v in self.assoc.items()},
+            "final_punct": {k: dict(v) for k, v in self.final_punct.items()},
+            "said": list(self.said)[-2000:],
+        }
+        tmp = self.store + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(d, f, ensure_ascii=False)
+        os.replace(tmp, self.store)            # atomic (CLAUDE.md safe-save)
 
     # ---- growth ----------------------------------------------------------
     @property
@@ -263,16 +300,22 @@ def cmd_teach(path):
         print(f"    {pc.spontaneous() or '(silence)'}")
 
 
-def cmd_chat():
-    pc = PureMind()
-    print("PURE mode chat — talk to it in Korean to teach it. Ctrl-D to exit.\n")
-    while True:
-        try:
-            line = input("you > ")
-        except EOFError:
-            break
-        r = pc.respond(line)
-        print(f"pure> {r or '(...)'}    [{pc.state_line()}]")
+def cmd_chat(store=DEFAULT_STORE):
+    pc = PureMind(store=store)                 # cumulative: it remembers past conversations
+    print(f"PURE mode chat — talk to it in Korean to teach it. Ctrl-D to exit.")
+    print(f"(resumed: {pc.state_line()})\n")
+    try:
+        while True:
+            try:
+                line = input("you > ")
+            except EOFError:
+                break
+            r = pc.respond(line)
+            print(f"pure> {r or '(...)'}    [{pc.state_line()}]")
+            pc.save()
+    finally:
+        pc.save()
+        print(f"\n[saved: {pc.state_line()} -> {store}]")
 
 
 def cmd_dialogue(turns):
