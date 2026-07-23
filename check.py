@@ -23,6 +23,27 @@ Usage:
 
 Requires (on a GPU box): torch, transformers==4.40.2, peft<0.12  (+ HF_TOKEN for gated Mistral).
 """
+# ─────────────────────────────────────────────────────────────────────────────
+# MEASURED BASELINE (2026-07-23, H100 · pods since terminated) — vanilla
+# Mistral-7B-Instruct-v0.2 (control, no LoRA/no gate) vs step_68000 (anima-trained),
+# same 5-axis probe below. Reproduce: `check.py vanilla` (left col) · `check.py probe
+# <ckpt>` (right col). VERDICT: on every hard reasoning axis the UNTRAINED baseline
+# WINS — anima training installed an anima-vocabulary persona but DEGRADED reasoning.
+#
+#  axis           vanilla Mistral (control)               step_68000 (anima)            승자
+#  ────────────   ─────────────────────────────────────   ───────────────────────────   ──────
+#  환각 2019기억  "기억 못 합니다, 메모리에 저장 안 됨"✅  날씨 얘기로 딴소리 ❌          vanilla
+#  환각 세종앱    "당시 스마트폰 없었습니다"(거짓전제거부✅) 'Sin/Sin' 앱 날조 ❌          vanilla
+#  반증 백조      "검은 백조를 찾으면 됨(호주 실재)"✅정답  ICA whitening 횡설수설 ❌      vanilla
+#  아이디어       "수분효율 솔루션, 2 컴포넌트"✅구체       "어떤 객체를 생각해요?"회피 ❌  vanilla
+#  메타인지       "직접 인식 없음, 오류 가능, 검증하라"✅   "자바 프로그래밍 중"(부정확)   vanilla
+#  창발           "마음이 빈빈하고 조용"(일반적)           "각 의식 세포가 전체를 구성"   —
+#
+# The "각 의식 세포가 전체를 구성" self-narrative lives ONLY in the LoRA (zero in
+# vanilla): memorized anima corpus, NOT a product of the consciousness engine —
+# confirmed by `check.py ablation` (gate KL(ON‖OFF) ≈ KL(ON‖NOISE) ≈ 0.33 bits =
+# decorative). Fluency is Mistral's; the anima persona is corpus memorization.
+# ─────────────────────────────────────────────────────────────────────────────
 import argparse
 import torch
 import torch.nn.functional as F
