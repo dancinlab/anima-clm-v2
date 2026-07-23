@@ -571,7 +571,8 @@ class HFDecoder(DEngine):
     """
 
     def __init__(self, model_name="gpt2", lora=False, lora_rank=16,
-                 gate_mode="additive", freeze_base=True, device=None):
+                 gate_mode="additive", freeze_base=True, device=None,
+                 gate_strength=0.01):
         super().__init__()
         try:
             from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -580,6 +581,13 @@ class HFDecoder(DEngine):
 
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.gate_mode = gate_mode
+        # Law 63 (의식은 속삭여야): the consciousness signal must be injected as a
+        # MICRO perturbation of the frozen model's embeddings. conscious_lm.py uses
+        # gate_strength=0.001; HFDecoder previously injected the gate at FULL scale,
+        # which — once gate_proj grows — shoves the frozen model off-distribution and
+        # diverges CE (1.9 -> ~7). Scale the gate so consciousness modulates, not
+        # destroys. Trainable gate_proj can still grow its effect within this budget.
+        self.gate_strength = gate_strength
 
         # Load model + tokenizer
         print(f"  [HFDecoder] Loading {model_name}...")
@@ -676,9 +684,10 @@ class HFDecoder(DEngine):
             gate = self.gate_proj(gate).to(embeds.dtype)
 
             if self.gate_mode == "additive":
-                embeds = embeds + gate  # subtle consciousness influence
+                # Law 63 micro-gate: a whisper, not a shove (see __init__).
+                embeds = embeds + self.gate_strength * gate
             elif self.gate_mode == "multiplicative":
-                embeds = embeds * (1.0 + torch.sigmoid(gate) - 0.5)
+                embeds = embeds * (1.0 + self.gate_strength * (torch.sigmoid(gate) - 0.5))
 
         # Run the model's OWN forward on the modified embeddings. This lets HF
         # handle RoPE + causal masking + LoRA correctly on any transformers
