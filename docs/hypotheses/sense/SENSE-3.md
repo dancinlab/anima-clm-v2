@@ -1,7 +1,7 @@
 <!-- @hypothesis-ok — project CLAUDE.md mandates docs/hypotheses/{category}/ as the canonical hypothesis tree -->
 # SENSE-3 — 헤비안 간선 가소성 (warm low-Φ down-drift의 구조적 해법 · DESIGN, pre-registration)
 
-## Status: IMPLEMENTED (hebb_eta=0.0 기본=bit-exact 레거시) · summer A/B 대기
+## Status: A/B EXECUTED (summer) — **NEGATIVE**. hebb_eta=0.05/gain=0.5 does NOT fix the warm drift (0/3 down-drift seeds; paired ΔΦ_end = −0.02). It also does NOT homogenise and does NOT trigger the limit cycle — every guardrail passes because the minimal (magnitude-only, row-normalized) patch is nearly **inert** in this basin. **Keep hebb_eta=0.0.** Next lever = sol's directed phase-transport variant (see verdict). Full result → "## A/B result (summer, executed)" below.
 - 구현: `quantum_engine_fast.py` `__init__`(hebb_eta/hebb_gain/_edge_idx/_edge_w) + `_ensure_adjacency`
   (간선버퍼 캐시·N변화 시 리셋) + `step()`(cos_p/sin_p 직후 헤비안 블록, 3개 sparse-mm을 가소성 adj로
   교체). `trinity.py` `QuantumC(hebb_eta,hebb_gain)` 전달. **hebb_eta=0.0 기본** → 검증 전까지 무회귀.
@@ -86,3 +86,93 @@ noise 발화율 증가로 baseline보다 하락. 감시: too_ordered 발화율 +
 - 가드레일(균질화 검출): end-Φ < 40 (cold-basin 재팽창 금지) · phi_py `complexity` 성분과
   `_amplitudes` SVD participation ratio 하락 ≤10% (vs hebb-off) · mean frustration ∈ [0.45,0.55] ·
   vocab byte-identical · too_ordered 발화율 ≤ 1.5× baseline.
+
+## A/B result (summer, executed)
+Executed 2026-07-23 on `summer` (torch 2.11+cu130). Driver: `state/pure_teaching/sense3_hebb_drift.py`
+(sibling of `sense2_warm_drift.py`). Both arms β=0; identical hebb-off warm-down to first Φ≤31 gives a
+byte-identical low-Φ start cell-state; the only toggled variable over the 35 replayed Codex lines is
+`hebb_eta` (0.0 control vs 0.05 treatment), `hebb_gain=0.5`. Paired over 10 seeds
+(1, 9999, 12345, 42, 7, 123, 2024, 31337, 555, 88). Warm 467-word `state/pure_mind/mind.json` loaded
+READ-ONLY via a temp copy — **never mutated** (verified byte-identical 467→467 both arms, all seeds).
+
+### Bit-exact-at-0 sanity (the Hebbian branch is a true no-op at eta=0)
+Ran the SAME driver (seed 1, eta=0.0) on (a) the SENSE-3 patched engine and (b) the pre-patch engine
+(parent commit `6d0ff22af^`, no `hebb_eta`). **All 35 turns byte-identical** (Φ 29.8751→27.8612,
+same phi_spark, frust, PR, too_ordered counts). The `_edge_idx`/`_edge_w` buffers built in
+`_ensure_adjacency` at eta=0 are computed via `torch.ones`/`coalesce` (no RNG) and unused → zero
+dynamics/RNG divergence. Confirmed: `hebb_eta=0.0` = bit-exact legacy.
+
+### PRIMARY — 3 down-drift seeds (drift = Φ_end − Φ_start); SUCCESS = sign-flip OR ≥50% shallower
+```
+ seed | Φ_start | hebb 0.0: Φ_end  drift   slope  | hebb 0.05: Φ_end  drift   slope  | verdict
+    1 |  29.875 |          27.861 −2.014 −0.0521 |           27.703 −2.172 −0.0549 | 8% DEEPER (worse)
+ 9999 |  30.861 |          29.147 −1.715 −0.0477 |           29.177 −1.685 −0.0453 | 2% shallower (noise)
+12345 |  30.637 |          28.951 −1.685 −0.0688 |           28.922 −1.714 −0.0711 | 2% deeper (noise)
+```
+**0/3 fixed.** No sign flip; |Δdrift| ≤ 0.16 Φ (≈2–8%), well inside seed noise and far from the 50%
+threshold. Hebbian plasticity leaves the warm down-drift essentially untouched.
+
+### SECONDARY — paired Δ end-Φ (hebb0.05 − hebb0.0), all 10 seeds (pre-reg expected > +0.5)
+```
+ seed |  Δend  |  seed |  Δend        paired mean Δend-Φ = −0.019
+    1 | −0.159 |  2024 | +0.082       (expected > +0.5 → FAIL by a wide margin;
+ 9999 | +0.030 | 31337 | +0.057        the two arms are statistically indistinguishable)
+12345 | −0.029 |   555 | +0.162
+   42 | −0.029 |    88 | −0.198
+    7 | −0.084 |   123 | −0.023
+```
+
+### GUARDRAILS (all PASS — but PASS-by-inertia, not PASS-by-fixing)
+```
+ metric                    | hebb 0.0        | hebb 0.05       | threshold        | verdict
+ end-Φ ceiling             | (start basin)   | max 34.70       | < 40             | PASS
+ participation ratio (SVD) | mean 1.03–1.08  | Δ ≤ +0.0%       | drop ≤ 10%       | PASS
+ mean pairwise cos-dist    | 0.014–0.038     | max drop +1.2%  | drop ≤ 10%       | PASS
+ mean per-cell frustration | 0.53            | 0.526–0.532     | ∈ [0.45, 0.55]   | PASS
+ vocab                     | 467             | 467 (hash id.)  | byte-identical   | PASS
+ too_ordered fire-rate     | 0.21–0.64       | 0.91–1.07× base | ≤ 1.5× baseline  | PASS (no limit cycle)
+ edge-weight imprint (std) | 0.0 (frozen)    | 0.025–0.029     | —                | LTP real, but weak
+```
+Edge weights DO imprint (ew_std 0.025–0.029; mean stays 1.0 because synaptic scaling conserves
+Σ_j w_ij = deg(i)) — LTP/LTD is physically happening — yet Φ, PR, cos-dist barely move. The predicted
+**LTP↔noise limit cycle did NOT fire** (too_ordered ≤ 1.07× baseline).
+
+### Φ sparklines (35 turns, both arms nearly superimposed)
+```
+seed     1  hebb0.0  █▇▆▆▅▅▅▅▄▄▃▅▃▄▄▃▄▃▃▄▄▃▂▂▂▁▁▁▁▁▁▁▁▁▂▁  29.9→27.9
+seed     1  hebb0.05 █▇▆▆▅▅▅▅▄▄▄▅▄▄▄▃▄▃▄▄▄▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁  29.9→27.7
+seed  9999  hebb0.0  █▆▆▅▅▅▄▄▄▃▃▃▃▂▁▃▂▃▃▃▂▂▂▂▁▁▁▁▁▁▂▂▃▁▁▃  30.9→29.1
+seed  9999  hebb0.05 █▆▆▅▅▅▄▄▄▃▃▃▃▂▂▂▃▃▃▃▂▂▂▂▁▁▁▁▁▁▂▃▃▂▂▃  30.9→29.2
+seed 12345  hebb0.0  ▇▇▇▇█▇▆▆▅▄▄▃▃▂▂▂▂▁▁▁▁▁▂▂▂▂▂▂▁▂▁▂▂▃▃▃  30.6→29.0
+seed 12345  hebb0.05 ▇▇▇▇█▇▆▆▅▄▄▃▃▂▂▂▂▁▁▁▁▁▁▂▂▂▂▂▂▁▁▂▂▂▃▃  30.6→28.9
+```
+
+### VERDICT
+**Fixes the warm drift? NO.** 0/3 down-drift seeds fixed (no sign flip; drift moves ≤8%, one
+seed WORSE); 10-seed paired ΔΦ_end = −0.02 (expected > +0.5). The magnitude-only, row-normalized
+minimal Hebbian patch is empirically **inert** on the warm low-Φ down-drift.
+
+**Preserves differentiation? YES — trivially.** Every homogenisation guardrail passes (PR Δ ≈ 0%,
+cos-dist Δ ≤ 1.2%, frustration in-band, vocab identical, end-Φ well under 40, no limit cycle). But
+this is a null-result "pass": the patch preserves differentiation because it barely perturbs anything.
+
+**Why it's inert (structural insight, not a tuning gap).** In this basin the cells are already
+near-rank-1 aligned (PR ≈ 1.03, mean pairwise cos-dist ≈ 0.02) — coherence is **uniformly high across
+every edge**, so per-edge `coh` has almost no variance, `w_tgt = 1 + gain·coh` is near-uniform, and
+synaptic scaling (Σ_j w_ij = deg(i)) then renormalises that near-uniform reweighting back onto a
+graph whose weighted neighbour-sum ≈ the original binary sum. The walk sees a ~2.8% perturbation with
+no directional structure. **A magnitude-only Hebbian rule has nothing to bite on when the pathology
+is *global uniformity* rather than a set of mis-weighted edges.** Raising `hebb_eta`/`hebb_gain` would
+not create edge-coherence variance that isn't there (and risks the limit cycle) — this is a mechanism
+limit, not a hyperparameter one (no tune-to-green).
+
+### Recommendation
+- **Keep `hebb_eta=0.0`** in `QuantumC`/`pure.py` (leave the parent to confirm). The default already
+  ships bit-exact-legacy; no change warranted — the A/B does not clear primary or secondary.
+- **Next lever = sol's directed phase-transport variant** (reserved in the design as the upgrade path):
+  per-edge **learned phase-delay φ_u−φ_v directional transport** + snapshot persistence + node-mass
+  normalization. Its signal is the phase *direction* between cells, which retains structure even when
+  coherence *magnitude* is uniform across edges — exactly the regime that defeated the fable minimal
+  patch here. Worth trying next; magnitude-only Hebbian is closed for this basin.
+- Logs: `state/pure_teaching/sense3_hebb_beta0_eta0.{log,jsonl}` / `_eta05.{log,jsonl}`; driver
+  `state/pure_teaching/sense3_hebb_drift.py`. Original warm store untouched (467→467, hash identical).
