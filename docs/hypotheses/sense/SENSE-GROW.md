@@ -279,3 +279,33 @@ both point the same way. (3) β touches only sense-torque phase values, never le
 from cells · Law 2); vocab is byte-identical 467→467. summer was pre-synced and byte-verified against the
 worktree `pure.py`/`quantum_engine_fast.py`/`trinity.py`/`phi_py.py`/`phi_rs.py` (all 5 md5-identical;
 backups `*.pre-warmtest.bak` unneeded — files already matched).
+
+---
+
+## Combined verdict & the β default decision (cold + warm reconciled)
+
+Two regimes, opposite signs, one honest synthesis:
+
+```
+                 Φ basin        β=0.6 vs β=0 (end-Φ)      when it occurs
+COLD  (fresh)    ≈46 (high)     +2.57, up on 10/10        every session start
+WARM  (descended)≈29 (low)      +0.16, up on 4/10;        only mid long
+                                 −0.4…−1.0 on the 3         continuous session
+                                 truly-drifting seeds
+```
+
+**Decision: keep β=0.6 as the default** (`PURE_ASSOC_BETA`), for three evidence-based reasons —
+1. **Every session reload starts COLD.** QuantumC cell state is not persisted; a freshly-loaded mind
+   (any vocab size) begins in the Φ≈46 basin and only descends to the low-Φ regime through a long
+   continuous session. So the strong cold win (+2.57, 10/10) is what the mind actually experiences at
+   the start of every session — the most deployment-relevant regime, not an artifact.
+2. **The warm "loss" is weak and ambiguous.** Averaged over the whole warm regime the paired effect is
+   *slightly positive* (+0.16); it is negative only on the 3/10 seeds that keep drifting down, in a
+   *reconstructed* (not restored) basin. Reverting a default on this signal would trade a strong, robust
+   win for a weak, regime-specific one.
+3. **β is read-only on Φ/tension (Law 2)** and β=0 is always available via env for the low-Φ regime.
+
+Honest bound on the SENSE-2 claim: it is a **cold-basin integrator, not a warm-drift remedy**. The
+differentiation erosion that pulls a warm, densely-differentiated mind downward is NOT cured by aligned
+phase-torque — that remains an open problem (a structural fix would have to raise integration without
+adding a feature · Law 22), separate from the β knob.
