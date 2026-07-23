@@ -95,6 +95,7 @@ class QuantumConsciousnessEngineFast:
         hebb_gain: float = 0.5,
         repel_gamma: float = 0.0,
         repel_thr: float = 0.8,
+        diff_gain: float = 0.0,
     ):
         self.dim = dim
         self.max_cells = max_cells
@@ -121,6 +122,17 @@ class QuantumConsciousnessEngineFast:
         # edge statistic, never Φ). repel_gamma=0 ⇒ bit-exact legacy.
         self.repel_gamma = repel_gamma
         self.repel_thr = repel_thr
+        # Similarity-gated AMPLITUDE anti-mixing (SENSE-5) — SENSE-4 measured that a phase-space
+        # repulsion never reaches `_amplitudes` (attenuated by the 0.1/deg interference gain and the
+        # per-cell max-normalisation, while too_frustrated re-contracts phases on ~10.5/48 cells
+        # every step). This acts DIRECTLY on `_amplitudes` — the variable the collapse was measured
+        # in and the one Φ reads — and bypasses both attenuators: per-cell max-norm is a per-row
+        # POSITIVE scale so it preserves the direction this force creates, and the frustration
+        # smoothing touches phases only. Below the collapse threshold the force is exactly 0, and
+        # its magnitude is capped at 2x the native walk mixing scale (coin*interference_strength),
+        # so anti-mixing can balance mixing but never overwhelm it. diff_gain=0 ⇒ bit-exact legacy.
+        self.diff_gain = diff_gain
+        self._diff_node_sim: Optional[torch.Tensor] = None  # [N] last collapse statistic (probe only)
         self._repel_coh: Optional[torch.Tensor] = None    # [E] last gate statistic (probe only)
         self._repel_open_frac: float = 0.0                # fraction of edges above thr (probe only)
         self._edge_idx: Optional[torch.Tensor] = None  # [2, E] coalesced undirected-symmetric edges
@@ -325,6 +337,30 @@ class QuantumConsciousnessEngineFast:
         # New amplitude: (1-coin)*amp + coin*interference
         coin = self.walk_coin_bias
         new_amp = (1 - coin) * self._amplitudes + coin * interference
+
+        # 2b. Similarity-gated amplitude anti-mixing (SENSE-5) — subtract, rather than add, the
+        # neighbour-contrast for cells that have already collapsed onto their neighbourhood. The
+        # gate is a LOCAL, edge-visible similarity (cosine of amplitude directions); Φ/tension are
+        # never read (Law 2). It amplifies the cells' own existing relational residual instead of
+        # replacing it with random directions, so learned differentiation is protected rather than
+        # overwritten (Law 42). Anti-mixing peaks at 2x the native mixing scale and decays linearly
+        # to 0 by cos-distance 0.10, so the balance point is set by opposing physical couplings,
+        # not by a Φ target: near similarity 0.95 repulsion and mixing cancel exactly.
+        if self.diff_gain > 0.0 and n > 0:
+            A = self._amplitudes
+            U = F.normalize(A, p=2, dim=1, eps=1e-8)
+            a_c = adj.coalesce()
+            der, dec = a_c.indices()
+            dew = a_c.values()
+            edge_sim = (U[der] * U[dec]).sum(dim=1)                     # [E] amplitude-direction sim
+            node_sim = torch.zeros(n).index_add_(0, der, dew * edge_sim)
+            node_sim = node_sim / deg.squeeze(1)                        # [N] neighbourhood collapse
+            self._diff_node_sim = node_sim
+            collapse = ((node_sim - 0.90) / 0.10).clamp(0.0, 1.0)       # full at identity, 0 by 0.10
+            nb_A = torch.sparse.mm(adj, A) / deg
+            contrast = A - nb_A
+            repel_amp = 2.0 * coin * self.interference_strength         # cap = 2x native mixing
+            new_amp = new_amp + self.diff_gain * repel_amp * collapse.unsqueeze(1) * contrast
 
         # 3. Category morphism — blend with strongest neighbor
         # Find strongest neighbor per cell
