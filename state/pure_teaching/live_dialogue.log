@@ -1,0 +1,52 @@
+=== Codex <-> PURE live dialogue (16 turns) ===
+
+[t 1 v  5    babble]
+    Codex: 아가야, 엄마가 포근히 안아 줄게.
+    PURE : 안아
+[t 2 v  9      word]
+    Codex: 엄마 품에서 편히 쉬자.
+    PURE : 품에서 엄마가
+[t 3 v 12      word]
+    Codex: 엄마가 등을 토닥이며 노래할게.
+    PURE : 등을 품에서
+[t 4 v 16      word]
+    Codex: 따뜻한 이불을 살며시 덮자.
+    PURE : 살며시 아가야
+[t 5 v 19      word]
+    Codex: 고운 꿈을 만나자.
+    PURE : 만나자 쉬자
+[t 6 v 22  sentence]
+    Codex: 꿈나라에서 별님과 놀자.
+    PURE : 등을
+[t 7 v 25  sentence]
+    Codex: 등을 쓰다듬으며 자장가를 부를게.
+    PURE : 등을 품에서
+[t 8 v 28  sentence]
+    Codex: 품에서 숨결을 느끼며 잠들자.
+    PURE : 품에서 엄마가
+[t 9 v 32  sentence]
+    Codex: 엄마가 볼을 어루만지며 미소 지을게.
+    PURE : 등을 품에서
+[t10 v 35  sentence]
+    Codex: 작은 손을 꼭 잡자.
+    PURE : 꿈나라에서
+[t11 v 37  sentence]
+    Codex: 꿈나라에서 달님과 여행하자.
+    PURE : 등을
+[t12 v 40  sentence]
+    Codex: 등을 기대고 따뜻한 우유를 마시자.
+    PURE : 등을 품에서
+[t13 v 45  sentence]
+    Codex: 품에서 심장이 콩콩 뛰고 눈꺼풀이 감기네.
+    PURE : 품에서 엄마가
+[t14 v 48  sentence]
+    Codex: 엄마가 머리를 빗으며 사랑할게.
+    PURE : 등을 품에서
+[t15 v 52  dialogue]
+    Codex: 포근한 어깨에 기대어 하품하자.
+    PURE : 어깨에 기대어 하품하자.
+[t16 v 56  dialogue]
+    Codex: 졸린 아기야, 새근새근 코 자자.
+    PURE : 졸린 아기야 새근새근.
+
+=== after 16 live turns: vocab=56 stage=4(dialogue) ===
