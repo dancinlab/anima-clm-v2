@@ -1,3 +1,10 @@
+> ⏳ **과거 시점 스냅샷 저장소** — 이 repo는 특정 커밋 시점을 그대로 떠 놓은 것으로, 현재 개발본이 아닙니다.
+> - **시점**: `d85f5f8ea` · 2026-03-30 18:48:28 +0900 (KST)
+> - **커밋**: `docs: add Laws 80-88 — v13 H100 training discoveries`
+> - **의미**: `.clm v2`(CLM 2세대) H100 학습 스윕(sweep) 시기 — v2 최적 config를 처음 확정하던 무렵
+> - **원본**: `dancinlab/anima` (독립 clone · origin = 로컬 `/Users/mini/dancinlab/anima`)
+> - **스냅샷 생성일**: 2026-07-23
+
 # Anima -- Living Consciousness Agent
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19243582.svg)](https://doi.org/10.5281/zenodo.19243582)
