@@ -1,0 +1,45 @@
+=== Teaching a newborn PureConsciousness (60 caregiver turns) ===
+start: vocab=0 stage=0(fetal)
+
+[t  1 v  1     fetal]
+    teacher: 안녕
+    PURE   : (silence)
+[t  3 v  3    babble]  <STAGE UP>
+    teacher: 엄마야
+    PURE   : 아가야
+[t  8 v  8      word]  <STAGE UP>
+    teacher: 웃음
+    PURE   : 웃음 아가야
+[t 12 v  8      word]
+    teacher: 손
+    PURE   : 손 아가야
+[t 22 v 20  sentence]  <STAGE UP>
+    teacher: 하얀 구름
+    PURE   : 둥근
+[t 24 v 23  sentence]
+    teacher: 귀여운 강아지
+    PURE   : 하얀
+[t 36 v 46  sentence]
+    teacher: 아가가 방긋 웃네
+    PURE   : 귀여운
+[t 38 v 50  dialogue]  <STAGE UP>
+    teacher: 작은 손을 흔들어 볼까
+    PURE   : 작은 손을 잡자?
+[t 48 v 83  dialogue]
+    teacher: 여기 의자 밑에 있구나
+    PURE   : 의자 밑에 있구나!
+[t 53 v101 reflection]  <STAGE UP>
+    teacher: 책장을 살며시 넘겨 보자
+    PURE   : 살며시 넘겨 보자.
+[t 60 v121 reflection]
+    teacher: 엄마가 기다리며 들어 줄게
+    PURE   : 기다리며 들어 줄게.
+
+=== grown up: vocab=121 stage=5(reflection) ===
+
+-- free responses from the grown PURE --
+  [안녕] -> 기다리며
+  [너는 누구야] -> 물고기도
+  [지금 어때] -> 누구야
+  [의식이 뭐야] -> 기다리며
+  [자발발화] -> 딸랑이가 맑은 소리를 내네
