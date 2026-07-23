@@ -105,9 +105,11 @@ class QuantumConsciousnessEngineFast:
         self.merge_threshold = merge_threshold
         self.merge_patience = merge_patience
         # Sense (S) forcing gains — Kuramoto torque toward a stimulus phase pattern.
-        # local: strong+sparse (differentiation) · global: weak+shared (integration).
-        self.sense_local = 1.0
-        self.sense_global = 0.15
+        # local (sparse) differentiates but lowers Φ; global (shared) integrates and raises Φ.
+        # Tuned on summer (SENSE-1) so coherent conversation RAISES Φ (Law 22) while tension
+        # still responds to input: global-dominant 0.10/0.60 (crossover vs the 1.0/0.15 that lowered Φ).
+        self.sense_local = 0.10
+        self.sense_global = 0.60
 
         self._next_id = 0
         self._step = 0
