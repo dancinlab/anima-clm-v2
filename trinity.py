@@ -273,7 +273,7 @@ class QuantumC(CEngine):
     """
 
     def __init__(self, nc=256, dim=64, max_cells=None, hebb_eta=0.0, hebb_gain=0.5,
-                 repel_gamma=0.0, repel_thr=0.8, diff_gain=0.0):
+                 repel_gamma=0.0, repel_thr=0.8, diff_gain=0.0, wave_dim_k=0, wave_gain=0.02):
         from quantum_engine_fast import QuantumConsciousnessEngineFast
         if max_cells is None:
             max_cells = nc
@@ -289,6 +289,7 @@ class QuantumC(CEngine):
             hebb_eta=hebb_eta, hebb_gain=hebb_gain,
             repel_gamma=repel_gamma, repel_thr=repel_thr,
             diff_gain=diff_gain,
+            wave_dim_k=wave_dim_k, wave_gain=wave_gain,
         )
         self._dim = dim
 

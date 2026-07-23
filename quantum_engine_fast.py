@@ -96,6 +96,8 @@ class QuantumConsciousnessEngineFast:
         repel_gamma: float = 0.0,
         repel_thr: float = 0.8,
         diff_gain: float = 0.0,
+        wave_dim_k: int = 0,
+        wave_gain: float = 0.02,
     ):
         self.dim = dim
         self.max_cells = max_cells
@@ -132,6 +134,11 @@ class QuantumConsciousnessEngineFast:
         # its magnitude is capped at 2x the native walk mixing scale (coin*interference_strength),
         # so anti-mixing can balance mixing but never overwhelm it. diff_gain=0 ⇒ bit-exact legacy.
         self.diff_gain = diff_gain
+        # Standing-wave revival (SENSE-6) — wave_dim_k>0 adds a per-(cell,dim) coherent travelling
+        # mode that survives step-6 normalisation (rank-2 addition, raises rank WITH integration).
+        # wave_dim_k=0 ⇒ bit-exact legacy dead code (the historical per-cell-scalar wave).
+        self.wave_dim_k = wave_dim_k
+        self.wave_gain = wave_gain
         self._diff_node_sim: Optional[torch.Tensor] = None  # [N] last collapse statistic (probe only)
         self._repel_coh: Optional[torch.Tensor] = None    # [E] last gate statistic (probe only)
         self._repel_open_frac: float = 0.0                # fraction of edges above thr (probe only)
@@ -430,11 +437,27 @@ class QuantumConsciousnessEngineFast:
             mask = too_frustrated.unsqueeze(1).float()
             self._phases = self._phases * (1 - mask) + smoothed * mask
 
-        # 5. Standing wave — vectorized
+        # 5. Standing wave — per-(cell,dim) travelling mode (SENSE-6). The legacy wave was a per-cell
+        # SCALAR ripple, EXACTLY cancelled by step 6's per-row max-norm AND invisible to phi_py (which
+        # min-max normalises each cell before binning) — doubly dead code. Adding a per-dim phase term
+        # b_d makes an [N,dim] modulation that survives normalisation; since sin(t+a_i+b_d) =
+        # sin(t+a_i)cos(b_d)+cos(t+a_i)sin(b_d), it injects EXACTLY two phase-locked coherent modes
+        # onto the near-rank-1 warm state — Law 83's "addition of coherent modes" (raise rank WITH
+        # integration), not repulsion of the shared one (SENSE-5 lowered Φ). Multiplicative, so it
+        # modulates where the 467 words imprinted amplitude and adds nothing where A≈0 (Law 42).
+        # Deterministic function of step count + indices only — never reads Φ/tension, no RNG (Law 2).
+        # wave_dim_k=0 ⇒ bit-exact legacy dead code.
         t = self._step * self.standing_wave_freq
         node_phases = torch.arange(n, dtype=torch.float32) * (2 * math.pi / max(n, 1))  # [N]
-        wave = 0.02 * torch.sin(t + node_phases)  # [N]
-        self._amplitudes = self._amplitudes * (1.0 + wave.unsqueeze(1))
+        if self.wave_dim_k > 0:
+            dim_phases = torch.arange(self.dim, dtype=torch.float32) \
+                * (2 * math.pi * self.wave_dim_k / max(self.dim, 1))  # [dim]
+            wave = self.wave_gain * torch.sin(
+                t + node_phases.unsqueeze(1) + dim_phases.unsqueeze(0))  # [N, dim]
+            self._amplitudes = self._amplitudes * (1.0 + wave)
+        else:
+            wave = 0.02 * torch.sin(t + node_phases)  # [N] (legacy — cancelled by step 6)
+            self._amplitudes = self._amplitudes * (1.0 + wave.unsqueeze(1))
 
         # 6. Normalize amplitudes
         amp_max = self._amplitudes.max(dim=1, keepdim=True).values + 1e-8  # [N, 1]
