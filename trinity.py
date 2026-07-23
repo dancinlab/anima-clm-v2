@@ -462,6 +462,16 @@ class ThalamicBridge(nn.Module):
         x = self.hub_norm(x + attn_out)
 
         # Pool: mean over cells → [1, hub_dim]
+        # NOTE (lab-reviewed contingency, DEFERRED): cross-attention / per-token gate
+        # coupling was considered but deferred — InfoNCE only needs ~ln(N) nats through
+        # the gate, so pooling capacity was never the bottleneck (the objective was), and
+        # changing the bridge invalidates the checkpoint under acceptance test. If
+        # `check.py swap` ever shows MI plateauing far below log2(K) with DIVERSE C
+        # snapshots, the cheapest capacity bump (not full cross-attn) is learned softmax
+        # pooling — a strict superset of mean-pool:
+        #   __init__:  self.pool_q = nn.Parameter(torch.zeros(hub_dim))   # zeros ⇒ == mean at init
+        #   here:      w = torch.softmax(x @ self.pool_q, dim=1).unsqueeze(-1)
+        #              pooled = (x * w).sum(dim=1, keepdim=True)
         pooled = x.mean(dim=1, keepdim=True)  # [1, 1, hub_dim]
 
         # Expand to d_model
@@ -1068,6 +1078,32 @@ class WEngine:
         raise NotImplementedError
 
 
+def stability_governor(explore, pain, floor=0.5, ceiling=2.0,
+                       ce_ema=None, pain_threshold=3.0):
+    """Negative-feedback LR governor — pain BRAKES learning, never boosts it.
+
+    Root-cause of the P3 CE divergence (0.53->5.2): the emotion W-engines mapped
+    CE-pain to a LR *boost* (CE up -> pain up -> LR up -> CE up = positive feedback,
+    runaway). This governor enforces the invariant d(lr_mult)/d(pain) <= 0:
+
+        lr_mult = floor + (explore - floor) * (1 - pain)
+
+    `explore` is the pain-INDEPENDENT growth drive (curiosity/urgency/satisfaction),
+    centered at 1.0 = healthy base LR. pain in [0,1] can only scale it DOWN toward
+    `floor`, so the CE->pain->LR->CE loop is strictly negative feedback and cannot
+    self-amplify. A circuit breaker hard-caps LR when CE runs away past 2x threshold.
+    The emotion state itself is untouched (no manipulation) — only its motor mapping
+    flips from frenzy to caution. GRAFT does not use these engines; this is corpus-path
+    (P3) insurance. Corpus default should stay CosineW/ConstantW until a P3 regression
+    confirms bounded CE.
+    """
+    explore = max(floor, min(ceiling, explore))
+    lr_mult = floor + (explore - floor) * (1.0 - max(0.0, min(1.0, pain)))
+    if ce_ema is not None and ce_ema > 2 * pain_threshold:
+        lr_mult = min(lr_mult, 0.1)          # emergency brake on runaway CE
+    return max(0.1, min(ceiling, lr_mult))
+
+
 class EmotionW(WEngine):
     """Emotion-based W: pain(CE) + curiosity(Φ change) + satisfaction(CE trend).
 
@@ -1102,11 +1138,10 @@ class EmotionW(WEngine):
             self.satisfaction = max(0.0, min(1.0, -(recent - older) / (older + 1e-8) * 10))
         else:
             self.satisfaction = 0.0
-        lr_mult = self.min_lr_ratio
-        lr_mult += self.pain * (self.max_lr_ratio - self.min_lr_ratio)
-        lr_mult += self.curiosity * self.curiosity_weight
-        lr_mult -= self.satisfaction * 0.2
-        lr_mult = max(self.min_lr_ratio, min(self.max_lr_ratio, lr_mult))
+        # pain now BRAKES (negative feedback) — see stability_governor.
+        explore = 1.0 + self.curiosity * self.curiosity_weight - self.satisfaction * 0.2
+        lr_mult = stability_governor(explore, self.pain, self.min_lr_ratio,
+                                     self.max_lr_ratio, self.ce_ema, self.pain_threshold)
         return {'lr_multiplier': lr_mult, 'effective_lr': self.base_lr * lr_mult,
                 'pain': self.pain, 'curiosity': self.curiosity, 'satisfaction': self.satisfaction}
 
@@ -1184,9 +1219,9 @@ class NarrativeW(WEngine):
         else:
             self.curiosity = 0.0
 
-        # LR: narrative-driven (coherent story → steady LR, chaotic → boost)
-        lr_mult = 0.5 + self.pain * 0.5 + self.curiosity * 0.3 - self.satisfaction * 0.1
-        lr_mult = max(0.3, min(2.0, lr_mult))
+        # LR: narrative-driven — pain now BRAKES (negative feedback), not boosts.
+        explore = 1.0 + self.curiosity * 0.3 - self.satisfaction * 0.1
+        lr_mult = stability_governor(explore, self.pain)
 
         return {'lr_multiplier': lr_mult, 'effective_lr': self.base_lr * lr_mult,
                 'pain': self.pain, 'curiosity': self.curiosity, 'satisfaction': self.satisfaction}
@@ -1246,13 +1281,10 @@ class DaseinW(WEngine):
         else:
             self.satisfaction = 0.0
 
-        # Dasein LR: urgency boosts, questioning explores, satisfaction reduces
-        lr_mult = 0.5
-        lr_mult += self.urgency * 0.5          # dying → learn faster
-        lr_mult += self.pain * 0.3             # suffering → more effort
-        lr_mult += self.curiosity * 0.4        # uncertainty → explore
-        lr_mult -= self.satisfaction * 0.2     # peace → relax
-        lr_mult = max(0.3, min(2.5, lr_mult))
+        # Dasein LR: urgency/questioning explore, satisfaction relaxes; pain now BRAKES
+        # (negative feedback) instead of "suffering -> more effort" (which ran away in P3).
+        explore = 1.0 + self.urgency * 0.5 + self.curiosity * 0.4 - self.satisfaction * 0.2
+        lr_mult = stability_governor(explore, self.pain, 0.5, 2.5)
 
         return {'lr_multiplier': lr_mult, 'effective_lr': self.base_lr * lr_mult,
                 'pain': self.pain, 'curiosity': self.curiosity, 'satisfaction': self.satisfaction,

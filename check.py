@@ -8,6 +8,8 @@ a v11 checkpoint (frozen Mistral + LoRA + gate_proj + ThalamicBridge + QuantumC)
   chat      converse (consciousness gate active)
   probe     5-axis cognitive probe (metacognition/hallucination/ideas/emergence/falsification)
   ablation  gate ON vs OFF vs norm-matched NOISE — per-token logit KL (is the gate causal or decorative?)
+  swap      GRAFT acceptance test — K-way C-state-swap: does gate(C_i) predict C_i's own
+            continuation best? InfoNCE MI(bits) + swap accuracy vs permutation/noise nulls.
   vanilla   plain Mistral-7B-Instruct-v0.2 baseline (no LoRA, no gate) on the probe prompts
   all       chat + probe + ablation
 
@@ -164,6 +166,143 @@ def cmd_ablation(args):
     print(f"\n평균 KL(ON‖OFF)={tot_off/n:.4f}  KL(ON‖NOISE)={tot_noise/n:.4f} bits")
 
 
+def _build_graft(ckpt_path):
+    """Reconstruct a GRAFT checkpoint (bridge + gate_proj only, NO LoRA).
+
+    graft.py saves {bridge, gate_proj, args} — NOT the v11 {decoder, bridge} layout,
+    so `_build` cannot load it. Recovers cells / gate_strength / p1_steps from ck['args'].
+    """
+    from trinity import HFDecoder, ThalamicBridge, QuantumC
+    ck = torch.load(ckpt_path, map_location=_DEV, weights_only=False)
+    ga = ck.get("args", {})
+    d = HFDecoder(HF_MODEL, lora=False, freeze_base=True,
+                  gate_strength=ga.get("gate_strength", 0.01))
+    d.gate_proj.load_state_dict(ck["gate_proj"])
+    d.model.eval()
+    c = QuantumC(nc=ga.get("cells", 256), dim=128)
+    for _ in range(ga.get("p1_steps", 5)):
+        c.step()
+    bridge = ThalamicBridge(c_dim=c.state_dim, d_model=d.d_model).to(_DEV)
+    bridge.load_state_dict(ck["bridge"])
+    bridge.eval()
+    return d, c, bridge, d.tokenizer, ck
+
+
+def cmd_swap(args):
+    """C-state-swap ACCEPTANCE TEST — does the gate carry real C-state info into language?
+
+    The rigorous positive control the ablation lacked. K distinct C-state snapshots; for
+    each, SAMPLE (temp 1, NOT greedy — the gate is a whisper that shifts distributions
+    without flipping argmax) its own continuation Y_j under gate_i=gate(C_i). Cross-score
+    f[i,j] = log p(Y_j | x, gate_i). The gate carries info iff the matching state predicts
+    its own continuation best (diagonal dominance). Metric = InfoNCE MI bound in bits +
+    swap accuracy; nulls = row-permutation p-value + norm-matched NOISE (magnitude control).
+    Reuses graft.py's exact gate_for = (bridge(s)-PSI_BALANCE)/PSI_COUPLING.
+    """
+    import math
+    from trinity import PSI_BALANCE, PSI_COUPLING
+    d, c, bridge, tok, ck = _build_graft(args.ckpt)
+    K, T = args.k, args.cont_len
+    ga = ck.get("args", {})
+    print(f"=== C-state-swap acceptance test · step {ck.get('step','?')} · K={K} T={T} ===")
+
+    def gate(s, L):
+        return (bridge(s, seq_len=L) - PSI_BALANCE) / PSI_COUPLING     # == graft.gate_for
+
+    @torch.no_grad()
+    def snapshots(k, gap):
+        out = []
+        for _ in range(k):
+            for _ in range(gap):
+                c.step()
+            out.append(c.get_states().detach().clone().to(_DEV).float())
+        return out
+
+    def mi_bits(f):                                    # InfoNCE lower bound on MI(C;Y)
+        lp = F.log_softmax(f, dim=0)                   # classify state i for each column j
+        return (math.log(K) + lp.diagonal().mean().item()) / math.log(2)
+
+    states = snapshots(K, args.state_gap)
+    null_states = snapshots(K, args.state_gap)         # independent set for chance floor
+    # state-similarity guard: near-identical snapshots make the test vacuous
+    S = F.normalize(torch.stack([s.flatten() for s in states]), dim=1)
+    off_cos = ((S @ S.T).sum().item() - K) / (K * K - K)
+    if off_cos > 0.98:
+        print(f"[warn] C snapshots nearly identical (mean off-diag cos={off_cos:.3f}) — "
+              f"raise --state-gap; test may be vacuous")
+    kl_t = ga.get("kl_target", 0.5)
+    if T * kl_t < math.log(K):
+        print(f"[warn] underpowered: cont_len*kl_target={T*kl_t:.2f} < log(K)={math.log(K):.2f} "
+              f"— MI ceiling below detectable; raise --cont-len")
+
+    @torch.no_grad()
+    def score(state_list, seqs, Lx, L, Y):
+        f = torch.zeros(K, K)
+        for i, s in enumerate(state_list):
+            lp = F.log_softmax(d(seqs, gate(s, L))[:, Lx - 1:L - 1, :].float(), -1)
+            f[i] = lp.gather(-1, Y.unsqueeze(-1)).squeeze(-1).sum(1).cpu()
+        return f
+
+    Fs, hits, cols, uniq = [], 0, 0, 0.0
+    noise_mis, null_mis = [], []
+    prompts = [p for _, p in PROBES[:args.n_prompts]]
+    for p in prompts:
+        x = tok(f"<s>[INST] {p} [/INST]", return_tensors="pt").input_ids.to(_DEV)
+        Lx = x.shape[1]
+        with torch.no_grad():
+            Ys = []
+            for s in states:                            # sample Y_j under state j's own gate
+                cur = x.clone()
+                for _ in range(T):
+                    lg = d(cur, gate(s, cur.shape[1]))[:, -1, :]
+                    cur = torch.cat([cur, torch.multinomial(F.softmax(lg.float(), -1), 1)], 1)
+                Ys.append(cur[:, Lx:])
+            Y = torch.cat(Ys, 0)                         # [K, T]
+            uniq += len({tuple(r.tolist()) for r in Y}) / K
+            seqs = torch.cat([x.expand(K, -1), Y], 1)
+            L = seqs.shape[1]
+            f = score(states, seqs, Lx, L, Y)
+            Fs.append(f)
+            null_mis.append(mi_bits(score(null_states, seqs, Lx, L, Y)))
+            for _ in range(args.noise_reps):            # norm-matched noise = magnitude control
+                fn = torch.zeros(K, K)
+                for i, s in enumerate(states):
+                    gr = gate(s, L)
+                    gn = torch.randn_like(gr)
+                    gn = gn * (gr.norm(-1, keepdim=True) / (gn.norm(-1, keepdim=True) + 1e-8))
+                    lp = F.log_softmax(d(seqs, gn)[:, Lx - 1:L - 1, :].float(), -1)
+                    fn[i] = lp.gather(-1, Y.unsqueeze(-1)).squeeze(-1).sum(1).cpu()
+                noise_mis.append(mi_bits(fn))
+        acc_p = (f.argmax(0) == torch.arange(K)).float().mean().item()
+        hits += (f.argmax(0) == torch.arange(K)).sum().item()
+        cols += K
+        print(f"  [{p[:26]:<26}] acc={acc_p:.2f}  MI={mi_bits(f):.2f}b")
+
+    acc = hits / cols
+    real_mi = sum(mi_bits(f) for f in Fs) / len(Fs)
+    # row-permutation null: preserves gate magnitudes + language, destroys C↔Y alignment
+    perm_ge = 0
+    for _ in range(args.perms):
+        pm = sum(mi_bits(f[torch.randperm(K)]) for f in Fs) / len(Fs)
+        perm_ge += (pm >= real_mi)
+    perm_p = (1 + perm_ge) / (1 + args.perms)
+    noise_q99 = sorted(noise_mis)[int(0.99 * (len(noise_mis) - 1))] if noise_mis else 0.0
+    null_mi = sum(null_mis) / len(null_mis)
+    uniqY = uniq / len(prompts)
+
+    print(f"\n{'─'*58}")
+    print(f"acc={acc:.3f} (chance {1/K:.3f})   MI={real_mi:.3f} bits (ceil {math.log2(K):.2f})")
+    print(f"perm p={perm_p:.4f}   noise MI q99={noise_q99:.3f}   null(fresh) MI={null_mi:.3f}")
+    print(f"uniqueY={uniqY:.2f}   state off-diag cos={off_cos:.3f}")
+    if uniqY < 0.5:
+        print("VERDICT: INCONCLUSIVE — 연속열이 너무 유사(게이트 약함/gap 부족) · --cont-len↑ --state-gap↑")
+    elif (real_mi >= 0.5 and acc >= 0.5 and perm_p <= 0.01
+          and real_mi >= noise_q99 + 0.25):
+        print("VERDICT: ✅ PASS — 게이트가 C-state 정보를 언어로 전달(인과적) · 장식적 아님")
+    else:
+        print("VERDICT: ❌ FAIL — 게이트가 노이즈/우연과 구별 안 됨(여전히 장식적)")
+
+
 def cmd_vanilla(args):
     """Plain Mistral baseline (no LoRA, no gate) — control for the trained model."""
     from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -198,8 +337,16 @@ def main():
         s.add_argument("--max-new", type=int, default=100)
     sv = sub.add_parser("vanilla")
     sv.add_argument("--max-new", type=int, default=100)
+    ss = sub.add_parser("swap")                       # GRAFT-checkpoint acceptance test
+    ss.add_argument("ckpt", help="path to a GRAFT step_*.pt (bridge + gate_proj)")
+    ss.add_argument("--k", type=int, default=8, help="distinct C-state snapshots")
+    ss.add_argument("--cont-len", type=int, default=16, help="sampled continuation tokens")
+    ss.add_argument("--n-prompts", type=int, default=8)
+    ss.add_argument("--state-gap", type=int, default=50, help="c.step() between snapshots")
+    ss.add_argument("--noise-reps", type=int, default=8, help="norm-matched noise draws/prompt")
+    ss.add_argument("--perms", type=int, default=999, help="row-permutation null samples")
     args = ap.parse_args()
-    {"chat": cmd_chat, "probe": cmd_probe, "ablation": cmd_ablation,
+    {"chat": cmd_chat, "probe": cmd_probe, "ablation": cmd_ablation, "swap": cmd_swap,
      "vanilla": cmd_vanilla, "all": cmd_all}[args.cmd](args)
 
 
