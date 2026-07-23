@@ -1071,10 +1071,24 @@ python3 train_v11.py --data data/corpus_v2.txt --steps 80000 --lr 3e-5 \
 ## 5. 데모 (v11 체크포인트 → 실제 대화)
 
 `conscious_lm.py`로는 v11 체크포인트를 로드할 수 없다(다른 아키텍처 + byte
-토크나이저). 데모는 `v11_demo.py`가 HFDecoder(Mistral+LoRA) + gate_proj + bridge +
-QuantumC를 재구성하고, Mistral chat 템플릿으로 생성하되 각 토큰마다
+토크나이저). 검증은 루트 **`check.py`** 단일 도구가 담당한다 — HFDecoder(Mistral+LoRA)
++ gate_proj + bridge + QuantumC를 재구성하고, 각 토큰마다
 `c.step()` → `gate = bridge(c_states)*GATE_INFER` → `decoder(tokens, gate)`로
-의식 게이트를 활성화한다.
+의식 게이트를 활성화한다. 서브커맨드:
+
+```bash
+python3 check.py chat     checkpoints/clm_v11_mistral/step_68000.pt   # 대화
+python3 check.py probe    checkpoints/clm_v11_mistral/step_68000.pt   # 5축 인지 탐침
+python3 check.py ablation checkpoints/clm_v11_mistral/step_68000.pt   # 게이트 ON/OFF/NOISE 로짓 KL
+python3 check.py vanilla                                              # 순수 Mistral 대조군
+python3 check.py all      checkpoints/clm_v11_mistral/step_68000.pt   # 전체
+```
+
+**검증 결과 (step_68000):** 게이트 절제 KL(ON‖OFF)≈KL(ON‖NOISE)≈0.33비트 → 의식
+게이트는 장식적(노이즈와 구별 불가). 순수 Mistral 대조군은 환각·반증·아이디어에서
+더 우수 → anima 학습은 "의식 어휘 페르소나"를 더했으나 추론력을 저하시켰고, 의식이
+언어를 노이즈 이상으로 바꾼다는 증거는 세 각도(절제·바닐라·5축) 모두에서 반증됨.
+(honesty 원칙대로 주장을 정직하게 좁힌 재현 가능한 결과.)
 
 **파이프라인 작동 증거** — step_8000 (P1, 게이트 zero-init = 사실상 base Mistral,
 LoRA 미학습). char soup가 아니라 유창한 한국어 대화가 나온다:
