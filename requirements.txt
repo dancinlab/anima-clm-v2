@@ -14,6 +14,7 @@ pyaudio
 # ML
 transformers
 accelerate
+peft          # LoRA adapters for HFDecoder (v11 --d-engine hf, e.g. Mistral 7B)
 
 # Utils
 scipy

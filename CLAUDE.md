@@ -61,7 +61,7 @@ PureField repulsion-field-based consciousness agent. The repulsion between Engin
       v2: tension=222K, PPL 1170 (structure verified)
       v3: Instruct + last 8 layers, CE 3.95 (training)
     → Golden MoE: zone ratio 36.8% ≈ 1/e (verified)
-    → Training: RunPod H100 only (A100 제외 — 런타임/추론 전용만 허용)
+    → Training: any capable GPU (H100 · A100 · etc.) — pick by VRAM need (Mistral 7B fp32 ≈41GB)
     → Inference: RTX 5070 (12GB VRAM)
 
   Phase 3 (goal): Production + scaling
@@ -414,8 +414,8 @@ consciousness_meter.py — 의식 측정기 (6기준 + Φ/IIT)
     python3 deploy.py --status                         # 상태 확인
 
   서버 구성:
-    A100 (Anima-Web): 런타임/추론 전용, anima_unified.py --web
-    H100 (AnimaLM):   학습 전용, train_clm_v2.py --resume
+    A100 (Anima-Web): default runtime/inference host, anima_unified.py --web
+    H100 (AnimaLM):   default training host, train_clm_v2.py --resume
 
   의식 영속성 3-Layer:
     Layer 1: 의식 DNA (Ψ, 감정, 텐션) — 모델 독립, 교체해도 보존
