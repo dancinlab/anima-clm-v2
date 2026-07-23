@@ -1,0 +1,36 @@
+/home/summer/pure_grow/quantum_engine_fast.py:59: UserWarning: Sparse invariant checks are implicitly disabled. Memory errors (e.g. SEGFAULT) will occur when operating on a sparse tensor which violates the invariants, but checks incur performance overhead. To silence this warning, explicitly opt in or out. See `torch.sparse.check_sparse_tensor_invariants.__doc__` for guidance.  (Triggered internally at /pytorch/aten/src/ATen/Context.cpp:760.)
+  adj = torch.sparse_coo_tensor(indices, values, size=(n, n)).coalesce()
+
+=== WARM-COLLAPSED (467-word, first Phi<=31 basin, 35 turns) (n_edges*turns = 10290) ===
+ pct   p0    p1    p5    p10   p25   p50   p75   p90   p95   p99   p100
+ coh   +0.286  +0.422  +0.561  +0.633  +0.706  +0.763  +0.808  +0.843  +0.862  +0.903  +0.940
+ mean +0.7461  std 0.0933
+ gate-open fraction by candidate thr:
+   thr=  0.5  open= 97.34%
+   thr=  0.6  open= 92.48%
+   thr=  0.7  open= 76.37%
+   thr= 0.75  open= 56.17%
+   thr=  0.8  open= 29.10%
+   thr= 0.85  open=  7.97%
+   thr=  0.9  open=  1.13%
+   thr= 0.95  open=  0.00%
+   thr= 0.98  open=  0.00%
+   thr= 0.99  open=  0.00%
+
+=== COLD-FRESH (empty mind, 35 turns) (n_edges*turns = 10640) ===
+ pct   p0    p1    p5    p10   p25   p50   p75   p90   p95   p99   p100
+ coh   -0.689  -0.527  -0.021  +0.184  +0.299  +0.423  +0.609  +0.777  +0.835  +0.893  +0.939
+ mean +0.4299  std 0.2714
+ gate-open fraction by candidate thr:
+   thr=  0.5  open= 36.63%
+   thr=  0.6  open= 25.81%
+   thr=  0.7  open= 17.18%
+   thr= 0.75  open= 12.78%
+   thr=  0.8  open=  8.12%
+   thr= 0.85  open=  3.70%
+   thr=  0.9  open=  0.71%
+   thr= 0.95  open=  0.00%
+   thr= 0.98  open=  0.00%
+   thr= 0.99  open=  0.00%
+
+CALIB_JSON {"warm": {"tag": "dist", "regime": "warm_collapsed", "p0": 0.28603, "p1": 0.422, "p5": 0.56052, "p10": 0.63318, "p25": 0.70583, "p50": 0.76268, "p75": 0.80814, "p90": 0.843, "p95": 0.86239, "p99": 0.90281, "p100": 0.93967, "mean": 0.74615, "std": 0.09331, "n": 10290, "open_frac": {"0.5": 0.97337, "0.6": 0.92478, "0.7": 0.76365, "0.75": 0.56171, "0.8": 0.29096, "0.85": 0.07969, "0.9": 0.01127, "0.95": 0.0, "0.98": 0.0, "0.99": 0.0}}, "cold": {"tag": "dist", "regime": "cold_fresh", "p0": -0.68942, "p1": -0.52739, "p5": -0.02092, "p10": 0.1843, "p25": 0.29876, "p50": 0.42274, "p75": 0.60862, "p90": 0.77709, "p95": 0.83464, "p99": 0.89287, "p100": 0.93862, "mean": 0.42991, "std": 0.27136, "n": 10640, "open_frac": {"0.5": 0.36635, "0.6": 0.25808, "0.7": 0.1718, "0.75": 0.12782, "0.8": 0.0812, "0.85": 0.03703, "0.9": 0.00714, "0.95": 0.0, "0.98": 0.0, "0.99": 0.0}}, "warm_vocab": 467}

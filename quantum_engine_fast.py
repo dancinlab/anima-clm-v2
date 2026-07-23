@@ -121,6 +121,8 @@ class QuantumConsciousnessEngineFast:
         # edge statistic, never Φ). repel_gamma=0 ⇒ bit-exact legacy.
         self.repel_gamma = repel_gamma
         self.repel_thr = repel_thr
+        self._repel_coh: Optional[torch.Tensor] = None    # [E] last gate statistic (probe only)
+        self._repel_open_frac: float = 0.0                # fraction of edges above thr (probe only)
         self._edge_idx: Optional[torch.Tensor] = None  # [2, E] coalesced undirected-symmetric edges
         self._edge_w: Optional[torch.Tensor] = None    # [E] plastic weights (reset on N change)
         self.walk_coin_bias = walk_coin_bias
@@ -355,6 +357,11 @@ class QuantumConsciousnessEngineFast:
             dphi = self._phases[rr] - self._phases[rc]        # [E, dim]
             coh = torch.cos(dphi).mean(dim=1)                 # [E] per-edge phase coherence
             excess = (coh - self.repel_thr).clamp(min=0.0)    # hard deadband: only collapsed pairs
+            # measurement-only probe (SENSE-4 calibration): the gate statistic + its open fraction.
+            # Written, never read by the dynamics. Setting repel_thr above 1.0 makes the whole block
+            # inert (excess≡0) while still recording coh ⇒ a bit-exact way to log the distribution.
+            self._repel_coh = coh
+            self._repel_open_frac = float((excess > 0).float().mean())
             if bool((excess > 0).any()):
                 push = torch.zeros_like(self._phases)
                 push.index_add_(0, rr, excess.unsqueeze(1) * torch.sin(dphi))
